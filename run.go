@@ -25,9 +25,11 @@ func RunBacktrace() {
 		stocks = append(stocks, &stock)
 	}
 	// 用策略对股票数据做预处理
-	strag := BreakOutStrategy{}
-	strag.Process(stocks)
+	buy := BreakOutStrategyBuy{}
+	buy.Process(stocks)
+	sell := MACDStrategySell{}
+	sell.Process(stocks)
 	// 执行策略
 	agent := StockAgent{}
-	agent.Run(&strag)
+	agent.Run(&buy, &sell)
 }

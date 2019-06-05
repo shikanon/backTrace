@@ -1,17 +1,38 @@
 package backTrace
 
 type Strategy interface {
-	BuyOrSell(StockDailyData) int
+	Buy(StockDailyData) int
+	Sell(StockDailyData) int
 }
 
-type BreakOutStrategy struct{}
+type BuyStrategy interface {
+	Buy(StockDailyData) int
+}
+
+type SellStrategy interface {
+	Sell(StockDailyData) int
+}
+
+type BreakOutStrategyBuy struct{}
 
 // 策略初加工所有股票数据
-func (bos *BreakOutStrategy) Process(slist []*Stock) []*Stock {
+func (bos *BreakOutStrategyBuy) Process(slist []*Stock) []*Stock {
 	return slist
 }
 
 // 根据特征字段判断是否买入
-func (bos *BreakOutStrategy) BuyOrSell(s StockDailyData) int {
+func (bos *BreakOutStrategyBuy) Buy(s StockDailyData) int {
+	return 0
+}
+
+type MACDStrategySell struct{}
+
+// 策略初加工所有股票数据
+func (bos *MACDStrategySell) Process(slist []*Stock) []*Stock {
+	return slist
+}
+
+// 根据特征字段判断是否卖出
+func (macd *MACDStrategySell) Sell(s StockDailyData) int {
 	return 0
 }

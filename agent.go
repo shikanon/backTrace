@@ -5,7 +5,7 @@ import (
 )
 
 type Agent interface {
-	Run(Strategy)
+	Run(BuyStrategy, SellStrategy)
 }
 
 type TransactionList struct {
@@ -26,6 +26,6 @@ type StockAgent struct {
 	totalStockVolumn []*HoldStock       //各类股票总持有数
 }
 
-func (agent *StockAgent) Run(s Strategy) {
+func (agent *StockAgent) Run(b BuyStrategy, s SellStrategy) {
 
 }
