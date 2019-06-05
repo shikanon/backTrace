@@ -8,11 +8,11 @@ import (
 )
 
 func TestGetStock(t *testing.T) {
-	var stock *StockData
+	var stock *StockDailyData
 	testLogger := logrus.WithFields(logrus.Fields{
 		"function": "TestGetStock()",
 	})
-	result := GetStock("600018")
+	result := GetSockData("600018")
 	if len(result) > 0 {
 		testLogger.Infof("find stock code numbers is %d", len(result))
 		stock = result[0]

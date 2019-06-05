@@ -19,5 +19,15 @@ func init() {
 }
 
 func RunBacktrace() {
-	GetStock("60018")
+	var stocks []*Stock
+	for _, code := range GetAllSockCode() {
+		stock := GetSockData(code)
+		stocks = append(stocks, &stock)
+	}
+	// 用策略对股票数据做预处理
+	strag := BreakOutStrategy{}
+	strag.Process(stocks)
+	// 执行策略
+	agent := StockAgent{}
+	agent.Run(&strag)
 }
