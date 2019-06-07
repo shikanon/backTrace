@@ -1,30 +1,15 @@
 package backTrace
 
-imoprt(
-	"errors"
-)
-
-//买入
-const OPT_BUY = 0
-
-//卖
-const OPT_SELL = 1
-
-//什么也不做
-const OPT_HOLD = 2
-
-
-func SliceOrOpter(fristArray []float32, secArray []float32) ([]float32,error){
+func SliceOrOpter(fristArray []float32, secArray []float32) ([]float32, error) {
 	var result []float32
-	if len(fristArray) != len(secArray){
+	if len(fristArray) != len(secArray) {
 		return nil, error.Error("When you use SliceOrOpter, the length of array must equal")
 	}
 	for i, v := range fristArray {
 		result[i] = fristArray[i] || secArray
 	}
-	return result
+	return nil, result
 }
-
 
 type Analyzer struct {
 	BuyPolicies  []Strategy
@@ -39,8 +24,8 @@ func (ana *Analyzer) Analyse(data Stock) ([]int, error) {
 	var ss bool          // 是否卖出
 	n := 0
 	for _, strag := range ana.BuyPolicies {
-		bs,err = strag.Do(data)
-		if err != nil{
+		bs, err = strag.Do(data)
+		if err != nil {
 			return result, err
 		}
 		if n == 0 {
@@ -74,11 +59,11 @@ func (ana *Analyzer) Analyse(data Stock) ([]int, error) {
 	}
 	result = append(result, r)
 
-	return result
+	return nil, result
 }
 
 type Strategy interface {
-	Do(Stock)  ([]bool,error)
+	Do(Stock) ([]bool, error)
 }
 
 type BreakOutStrategyBuy struct{}
@@ -97,12 +82,12 @@ func (bos *BreakOutStrategyBuy) Process(slist []*Stock) []*Stock {
 }
 
 // 根据特征字段判断是否买入
-func (bos *BreakOutStrategyBuy) Do(s Stock) ([]bool,error) {
+func (bos *BreakOutStrategyBuy) Do(s Stock) ([]bool, error) {
 	length := len(s)
 	N := 60
 	if length < N {
 		err := error.Error("stock data is too short and cann't use this strategy!")
-		return nil,err
+		return nil, err
 	}
 	var result [length]bool
 	var ma [length]float32
