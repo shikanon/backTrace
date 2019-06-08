@@ -12,15 +12,6 @@ import (
 var DB *sqlx.DB
 var err error
 
-const (
-	USERNAME = "root"
-	PASSWORD = "asdfQWER!@#$"
-	NETWORK  = "tcp"
-	SERVER   = "gz-cdb-73f4xwbv.sql.tencentcdb.com"
-	PORT     = 61347
-	DATABASE = "stock"
-)
-
 type Stock []*StockDailyData
 
 type StockDailyData struct {

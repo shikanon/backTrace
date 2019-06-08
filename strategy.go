@@ -1,40 +1,80 @@
 package backTrace
 
+func SliceOrOpter(fristArray []float32, secArray []float32) ([]float32, error) {
+	var result []float32
+	if len(fristArray) != len(secArray) {
+		return nil, error.Error("When you use SliceOrOpter, the length of array must equal")
+	}
+	for i, v := range fristArray {
+		result[i] = fristArray[i] || secArray
+	}
+	return nil, result
+}
 
 type Analyzer struct {
-	BuyPolicies 	[]*Strategy
-	SellPolicies	[]*Strategy
+	BuyPolicies  []Strategy
+	SellPolicies []Strategy
 }
 
-type (ana *Analyzer) Analyse(data Stock) []int{
+func (ana *Analyzer) Analyse(data Stock) ([]int, error) {
 	var result []int
-	var buys []int
-	for d := range data{
-		var preBuy Strategy
-		n = 0
-		for strag:= range ana.BuyPolicies{
-			bs := strag.Do(d)
-			if n == 0 {
-				preBuy = bs
-			}else{
-				bs = preBuy | bs
-				preBuy = bs
-			}
-			// 或策略
-			n += 1
+	var err error
+	var preStrategy bool //记录值，主要用于做多策略计算的
+	var bs bool          // 是否买入
+	var ss bool          // 是否卖出
+	n := 0
+	for _, strag := range ana.BuyPolicies {
+		bs, err = strag.Do(data)
+		if err != nil {
+			return result, err
 		}
-		
-		ss := ana.SellOpter.Do(d)
-		result = append(result, d)
+		if n == 0 {
+			preStrategy = bs
+		} else {
+			// 或策略
+			bs = SliceOrOpter(preStrategy, bs)
+			preStrategy = bs
+		}
+		n += 1
 	}
-	return result
+
+	n = 0
+	for _, strag := range ana.SellPolicies {
+		ss = strag.Do(d)
+		if n == 0 {
+			preStrategy = ss
+		} else {
+			// 或策略
+			ss = SliceOrOpter(preStrategy, ss)
+			preStrategy = ss
+		}
+	}
+	var r int // 决定最后是买入还是卖出
+	if bs == ss {
+		r = OPT_HOLD
+	} else if bs == true {
+		r = OPT_BUY
+	} else {
+		r = OPT_SELL
+	}
+	result = append(result, r)
+
+	return nil, result
 }
 
-type Strategy interface{
-	Do(StockDailyData) int
+type Strategy interface {
+	Do(Stock) ([]bool, error)
 }
 
 type BreakOutStrategyBuy struct{}
+
+func Mean(value []float32) float32 {
+	var sumValue float32
+	for i, v := range value {
+		sumValue += v
+	}
+	return sumValue / float32(len(value))
+}
 
 // 策略初加工所有股票数据
 func (bos *BreakOutStrategyBuy) Process(slist []*Stock) []*Stock {
@@ -42,8 +82,24 @@ func (bos *BreakOutStrategyBuy) Process(slist []*Stock) []*Stock {
 }
 
 // 根据特征字段判断是否买入
-func (bos *BreakOutStrategyBuy) Do(s StockDailyData) int {
-	return 0
+func (bos *BreakOutStrategyBuy) Do(s Stock) ([]bool, error) {
+	length := len(s)
+	N := 60
+	if length < N {
+		err := error.Error("stock data is too short and cann't use this strategy!")
+		return nil, err
+	}
+	var result [length]bool
+	var ma [length]float32
+	for i, data := range s {
+		if i >= N {
+			ma[i] = Mean(data.Close[i-n : i])
+			if data.Close > ma {
+				result[i] = 1
+			}
+		}
+	}
+	return result, nil
 }
 
 type MACDStrategySell struct{}
@@ -54,6 +110,6 @@ func (bos *MACDStrategySell) Process(slist []*Stock) []*Stock {
 }
 
 // 根据特征字段判断是否卖出
-func (macd *MACDStrategySell) Do(s StockDailyData) int {
+func (macd *MACDStrategySell) Do(s *StockDailyData) bool {
 	return 0
 }
