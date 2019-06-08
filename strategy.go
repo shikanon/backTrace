@@ -19,11 +19,12 @@ type Analyzer struct {
 }
 
 func (ana *Analyzer) Analyse(data Stock) ([]int, error) {
-	var result []int
 	var err error
-	var preStrategy []bool //记录值，主要用于做多策略计算的
-	var bs []bool          // 是否买入
-	var ss []bool          // 是否卖出
+	length := len(data)
+	var result = make([]int, length)
+	var preStrategy = make([]bool, length) //记录值，主要用于做多策略计算的
+	var bs = make([]bool, length)          // 是否买入
+	var ss = make([]bool, length)          // 是否卖出
 	n := 0
 	for _, strag := range ana.BuyPolicies {
 		bs, err = strag.Do(data)
@@ -50,26 +51,29 @@ func (ana *Analyzer) Analyse(data Stock) ([]int, error) {
 			return nil, err
 		}
 		if n == 0 {
-			preStrategy = ss
+			copy(preStrategy, ss)
 		} else {
 			// 或策略
 			ss, err = SliceOrOpter(preStrategy, ss)
 			if err != nil {
 				return nil, err
 			}
-			preStrategy = ss
+			copy(preStrategy, ss)
 		}
 	}
+	if len(ss) != len(bs) {
+		return nil, errors.New("buy policy and sell policy length not equal!")
+	}
 	var r int // 决定最后是买入还是卖出
-	for s := range bs {
-		if bs[s] == ss[s] {
+	for i, s := range bs {
+		if bs[i] == ss[i] {
 			r = OPT_HOLD
-		} else if bs[s] == true {
+		} else if s == true {
 			r = OPT_BUY
 		} else {
 			r = OPT_SELL
 		}
-		result = append(result, r)
+		result[i] = r
 	}
 
 	return result, nil
@@ -107,14 +111,14 @@ func (bos *BreakOutStrategyBuy) Do(s Stock) ([]bool, error) {
 	var result = make([]bool, length)
 	var ma = make([]float32, length)
 
-	for _, data := range s {
-		closeArray = append(closeArray, data.Close)
+	for i, data := range s {
+		closeArray[i] = data.Close
 	}
 	for i, c := range closeArray {
 		if i >= N {
 			ma = append(ma, Mean(closeArray[i-N:i]))
 			if c > ma[i] {
-				result = append(result, true)
+				result[i] = true
 			}
 		}
 	}

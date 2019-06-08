@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAnalyzer(t *testing.T) {
@@ -16,7 +17,11 @@ func TestAnalyzer(t *testing.T) {
 		buy := BreakOutStrategyBuy{}
 		ana := Analyzer{BuyPolicies: []Strategy{&buy},
 			SellPolicies: []Strategy{&buy}}
-		ana.Analyse(stockData)
+		res, err := ana.Analyse(stockData)
+		if err != nil {
+			testLogger.Fatal("analyse function is err!", err)
+		}
+		assert.Equal(t, len(res), len(stockData))
 	} else {
 		testLogger.Fatal("can't find the stock in the database!")
 	}
