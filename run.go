@@ -1,13 +1,7 @@
 package backTrace
 
-import (
-	"os"
-
-	"github.com/sirupsen/logrus"
-)
-
 func init() {
-	// Log as JSON instead of the default ASCII formatter.
+/*	// Log as JSON instead of the default ASCII formatter.
 	logrus.SetFormatter(&logrus.TextFormatter{})
 
 	// Output to stdout instead of the default stderr
@@ -15,7 +9,7 @@ func init() {
 	logrus.SetOutput(os.Stdout)
 
 	// Only log level.
-	logrus.SetLevel(logrus.InfoLevel)
+	logrus.SetLevel(logrus.InfoLevel)*/
 }
 
 func RunBacktrace() {
@@ -23,13 +17,29 @@ func RunBacktrace() {
 	for _, code := range GetAllSockCode() {
 		stock := GetSockData(code)
 		stocks = append(stocks, &stock)
+		break
 	}
-	// 用策略对股票数据做预处理
-	buy := BreakOutStrategyBuy{}
-	buy.Process(stocks)
-	sell := MACDStrategySell{}
-	sell.Process(stocks)
-	// 执行策略
-	agent := StockAgent{}
-	agent.Run(&buy, &sell)
+
+
+
+	initMoney:= MoneyRecord{totalMoney:10000,freeMoney:10000}
+
+	//初始化分析者
+	ana:= Analyzer{BreakOutStrategyBuy{},}
+
+	agent := MoneyAgent{currentMoney:initMoney,Analyzer: ana}
+
+	//经理根据指定的策略对单只股票进行操作
+	for _,stock:= range stocks{
+		agent.WorkForSingle(*stock)
+	}
+
+	//输出交易信息
+	agent.PrintHistoryInfo()
+
+
+
+
+
+
 }

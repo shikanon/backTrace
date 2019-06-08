@@ -1,16 +1,37 @@
 package backTrace
 
-type Strategy interface {
-	Buy(StockDailyData) int
-	Sell(StockDailyData) int
+
+type Analyzer struct {
+	BuyPolicies 	[]*Strategy
+	SellPolicies	[]*Strategy
 }
 
-type BuyStrategy interface {
-	Buy(StockDailyData) int
+type (ana *Analyzer) Analyse(data Stock) []int{
+	var result []int
+	var buys []int
+	for d := range data{
+		var preBuy Strategy
+		n = 0
+		for strag:= range ana.BuyPolicies{
+			bs := strag.Do(d)
+			if n == 0 {
+				preBuy = bs
+			}else{
+				bs = preBuy | bs
+				preBuy = bs
+			}
+			// 或策略
+			n += 1
+		}
+		
+		ss := ana.SellOpter.Do(d)
+		result = append(result, d)
+	}
+	return result
 }
 
-type SellStrategy interface {
-	Sell(StockDailyData) int
+type Strategy interface{
+	Do(StockDailyData) int
 }
 
 type BreakOutStrategyBuy struct{}
@@ -21,7 +42,7 @@ func (bos *BreakOutStrategyBuy) Process(slist []*Stock) []*Stock {
 }
 
 // 根据特征字段判断是否买入
-func (bos *BreakOutStrategyBuy) Buy(s StockDailyData) int {
+func (bos *BreakOutStrategyBuy) Do(s StockDailyData) int {
 	return 0
 }
 
@@ -33,6 +54,6 @@ func (bos *MACDStrategySell) Process(slist []*Stock) []*Stock {
 }
 
 // 根据特征字段判断是否卖出
-func (macd *MACDStrategySell) Sell(s StockDailyData) int {
+func (macd *MACDStrategySell) Do(s StockDailyData) int {
 	return 0
 }
