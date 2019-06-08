@@ -22,10 +22,10 @@ func (ana *Analyzer) Analyse(data Stock) ([]int, error) {
 	var err error
 	length := len(data)
 	var result = make([]int, length)
-	var preStrategy = make([]bool, length) //记录值，主要用于做多策略计算的
-	var bs = make([]bool, length)          // 是否买入
-	var ss = make([]bool, length)          // 是否卖出
+	var bs = make([]bool, length) // 是否买入
+	var ss = make([]bool, length) // 是否卖出
 	n := 0
+	var preStrategy = make([]bool, length) //记录值，主要用于做多策略计算的
 	for _, strag := range ana.BuyPolicies {
 		bs, err = strag.Do(data)
 		if err != nil {
@@ -45,6 +45,7 @@ func (ana *Analyzer) Analyse(data Stock) ([]int, error) {
 	}
 
 	n = 0
+	preStrategy = make([]bool, length)
 	for _, strag := range ana.SellPolicies {
 		ss, err = strag.Do(data)
 		if err != nil {
@@ -116,7 +117,7 @@ func (bos *BreakOutStrategyBuy) Do(s Stock) ([]bool, error) {
 	}
 	for i, c := range closeArray {
 		if i >= N {
-			ma = append(ma, Mean(closeArray[i-N:i]))
+			ma[i] = Mean(closeArray[i-N : i])
 			if c > ma[i] {
 				result[i] = true
 			}
@@ -125,15 +126,36 @@ func (bos *BreakOutStrategyBuy) Do(s Stock) ([]bool, error) {
 	return result, nil
 }
 
-type MACDStrategySell struct{}
+type BreakOutStrategySell struct{}
 
 // 策略初加工所有股票数据
-func (bos *MACDStrategySell) Process(slist []*Stock) []*Stock {
+func (bos *BreakOutStrategySell) Process(slist []*Stock) []*Stock {
 	return slist
 }
 
 // 根据特征字段判断是否卖出
-func (macd *MACDStrategySell) Do(s Stock) ([]bool, error) {
-	var result = make([]bool, len(s))
+func (bos *BreakOutStrategySell) Do(s Stock) ([]bool, error) {
+	length := len(s)
+	N := 60
+	if length < N {
+		err := errors.New("stock data is too short and cann't use this strategy!")
+		return nil, err
+	}
+
+	var closeArray = make([]float32, length)
+	var result = make([]bool, length)
+	var ma = make([]float32, length)
+
+	for i, data := range s {
+		closeArray[i] = data.Close
+	}
+	for i, c := range closeArray {
+		if i >= N {
+			ma[i] = Mean(closeArray[i-N : i])
+			if c < ma[i] {
+				result[i] = true
+			}
+		}
+	}
 	return result, nil
 }
