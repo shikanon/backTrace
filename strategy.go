@@ -1,14 +1,16 @@
 package backTrace
 
-func SliceOrOpter(fristArray []float32, secArray []float32) ([]float32, error) {
-	var result []float32
+import "errors"
+
+func SliceOrOpter(fristArray []bool, secArray []bool) ([]bool, error) {
 	if len(fristArray) != len(secArray) {
-		return nil, error.Error("When you use SliceOrOpter, the length of array must equal")
+		return nil, errors.New("When you use SliceOrOpter, the length of array must equal")
 	}
-	for i, v := range fristArray {
-		result[i] = fristArray[i] || secArray
+	var result = make([]bool, len(fristArray))
+	for i, _ := range fristArray {
+		result[i] = fristArray[i] || secArray[i]
 	}
-	return nil, result
+	return result, nil
 }
 
 type Analyzer struct {
@@ -17,49 +19,64 @@ type Analyzer struct {
 }
 
 func (ana *Analyzer) Analyse(data Stock) ([]int, error) {
-	var result []int
 	var err error
-	var preStrategy bool //记录值，主要用于做多策略计算的
-	var bs bool          // 是否买入
-	var ss bool          // 是否卖出
+	length := len(data)
+	var result = make([]int, length)
+	var preStrategy = make([]bool, length) //记录值，主要用于做多策略计算的
+	var bs = make([]bool, length)          // 是否买入
+	var ss = make([]bool, length)          // 是否卖出
 	n := 0
 	for _, strag := range ana.BuyPolicies {
 		bs, err = strag.Do(data)
 		if err != nil {
-			return result, err
+			return nil, err
 		}
 		if n == 0 {
-			preStrategy = bs
+			copy(preStrategy, bs)
 		} else {
 			// 或策略
-			bs = SliceOrOpter(preStrategy, bs)
-			preStrategy = bs
+			bs, err = SliceOrOpter(preStrategy, bs)
+			if err != nil {
+				return nil, err
+			}
+			copy(preStrategy, bs)
 		}
 		n += 1
 	}
 
 	n = 0
 	for _, strag := range ana.SellPolicies {
-		ss = strag.Do(d)
+		ss, err = strag.Do(data)
+		if err != nil {
+			return nil, err
+		}
 		if n == 0 {
-			preStrategy = ss
+			copy(preStrategy, ss)
 		} else {
 			// 或策略
-			ss = SliceOrOpter(preStrategy, ss)
-			preStrategy = ss
+			ss, err = SliceOrOpter(preStrategy, ss)
+			if err != nil {
+				return nil, err
+			}
+			copy(preStrategy, ss)
 		}
 	}
-	var r int // 决定最后是买入还是卖出
-	if bs == ss {
-		r = OPT_HOLD
-	} else if bs == true {
-		r = OPT_BUY
-	} else {
-		r = OPT_SELL
+	if len(ss) != len(bs) {
+		return nil, errors.New("buy policy and sell policy length not equal!")
 	}
-	result = append(result, r)
+	var r int // 决定最后是买入还是卖出
+	for i, s := range bs {
+		if bs[i] == ss[i] {
+			r = OPT_HOLD
+		} else if s == true {
+			r = OPT_BUY
+		} else {
+			r = OPT_SELL
+		}
+		result[i] = r
+	}
 
-	return nil, result
+	return result, nil
 }
 
 type Strategy interface {
@@ -70,7 +87,7 @@ type BreakOutStrategyBuy struct{}
 
 func Mean(value []float32) float32 {
 	var sumValue float32
-	for i, v := range value {
+	for _, v := range value {
 		sumValue += v
 	}
 	return sumValue / float32(len(value))
@@ -86,30 +103,58 @@ func (bos *BreakOutStrategyBuy) Do(s Stock) ([]bool, error) {
 	length := len(s)
 	N := 60
 	if length < N {
-		err := error.Error("stock data is too short and cann't use this strategy!")
+		err := errors.New("stock data is too short and cann't use this strategy!")
 		return nil, err
 	}
-	var result [length]bool
-	var ma [length]float32
+
+	var closeArray = make([]float32, length)
+	var result = make([]bool, length)
+	var ma = make([]float32, length)
+
 	for i, data := range s {
+		closeArray[i] = data.Close
+	}
+	for i, c := range closeArray {
 		if i >= N {
-			ma[i] = Mean(data.Close[i-n : i])
-			if data.Close > ma {
-				result[i] = 1
+			ma = append(ma, Mean(closeArray[i-N:i]))
+			if c > ma[i] {
+				result[i] = true
 			}
 		}
 	}
 	return result, nil
 }
 
-type MACDStrategySell struct{}
+type BreakOutStrategySell struct{}
 
 // 策略初加工所有股票数据
-func (bos *MACDStrategySell) Process(slist []*Stock) []*Stock {
+func (bos *BreakOutStrategySell) Process(slist []*Stock) []*Stock {
 	return slist
 }
 
 // 根据特征字段判断是否卖出
-func (macd *MACDStrategySell) Do(s *StockDailyData) bool {
-	return 0
+func (bos *BreakOutStrategySell) Do(s Stock) ([]bool, error) {
+	length := len(s)
+	N := 60
+	if length < N {
+		err := errors.New("stock data is too short and cann't use this strategy!")
+		return nil, err
+	}
+
+	var closeArray = make([]float32, length)
+	var result = make([]bool, length)
+	var ma = make([]float32, length)
+
+	for i, data := range s {
+		closeArray[i] = data.Close
+	}
+	for i, c := range closeArray {
+		if i >= N {
+			ma = append(ma, Mean(closeArray[i-N:i]))
+			if c < ma[i] {
+				result[i] = true
+			}
+		}
+	}
+	return result, nil
 }

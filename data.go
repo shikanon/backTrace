@@ -45,7 +45,7 @@ func GetSockData(code string) Stock {
 		"code":     code,
 	})
 	contextLogger.Info("star!")
-	sqlstm := fmt.Sprintf("select * from daily_data where code=%s", code)
+	sqlstm := fmt.Sprintf("select * from stock_daily_data where code=%s", code)
 	contextLogger.Info(sqlstm)
 	err = DB.Select(&stockDailyData, sqlstm)
 	if err != nil {
@@ -60,7 +60,7 @@ func GetAllSockCode() []string {
 		"function": "GetAllSockCode()",
 	})
 	contextLogger.Info("star!")
-	err = DB.Select(&codes, "select code from daily_data group by code")
+	err = DB.Select(&codes, "select code from stock_daily_data group by code")
 	if err != nil {
 		logrus.Warn(err)
 	}
