@@ -20,15 +20,16 @@ func RunBacktrace() {
 		break
 	}
 
-	initMoney := MoneyRecord{totalMoney: 10000, freeMoney: 10000, myStocks: make(map[string]*MyStock)}
-
 	//初始化分析者
 	buy := BreakOutStrategyBuy{}
 	sell := BreakOutStrategySell{}
 	ana := Analyzer{BuyPolicies: []Strategy{&buy},
 		SellPolicies: []Strategy{&sell}}
 
-	agent := MoneyAgent{currentMoney: initMoney, Analyzer: ana}
+	agent := MoneyAgent{initMoney: 10000, Analyzer: ana}
+
+	//经理需要做好准备后才能开始工作
+	agent.init()
 
 	//经理根据指定的策略对单只股票进行操作
 	for _, stock := range stocks {

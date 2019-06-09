@@ -22,10 +22,10 @@ func (ana *Analyzer) Analyse(data Stock) ([]int, error) {
 	var err error
 	length := len(data)
 	var result = make([]int, length)
-	var preStrategy = make([]bool, length) //记录值，主要用于做多策略计算的
-	var bs = make([]bool, length)          // 是否买入
-	var ss = make([]bool, length)          // 是否卖出
+	var bs = make([]bool, length) // 是否买入
+	var ss = make([]bool, length) // 是否卖出
 	n := 0
+	var preStrategy = make([]bool, length) //记录值，主要用于做多策略计算的
 	for _, strag := range ana.BuyPolicies {
 		bs, err = strag.Do(data)
 		if err != nil {
@@ -45,6 +45,7 @@ func (ana *Analyzer) Analyse(data Stock) ([]int, error) {
 	}
 
 	n = 0
+	preStrategy = make([]bool, length)
 	for _, strag := range ana.SellPolicies {
 		ss, err = strag.Do(data)
 		if err != nil {
@@ -116,7 +117,7 @@ func (bos *BreakOutStrategyBuy) Do(s Stock) ([]bool, error) {
 	}
 	for i, c := range closeArray {
 		if i >= N {
-			ma = append(ma, Mean(closeArray[i-N:i]))
+			ma[i] = Mean(closeArray[i-N : i])
 			if c > ma[i] {
 				result[i] = true
 			}
@@ -150,7 +151,7 @@ func (bos *BreakOutStrategySell) Do(s Stock) ([]bool, error) {
 	}
 	for i, c := range closeArray {
 		if i >= N {
-			ma = append(ma, Mean(closeArray[i-N:i]))
+			ma[i] = Mean(closeArray[i-N : i])
 			if c < ma[i] {
 				result[i] = true
 			}
