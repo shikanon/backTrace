@@ -359,9 +359,9 @@ type ProfileData struct {
 func (agent *MoneyAgent) GetProfileData() ProfileData {
 	initCapital := agent.initMoney
 	finalCapital := agent.currentMoney.totalMoney
-	historyMoney := make([]MoneyRecord, len(agent.historyMoney))
-	for _, val := range agent.historyMoney {
-		historyMoney = append(historyMoney, val)
+	historyMoney := make([]MoneyRecord, len(agent.historyMoney), len(agent.historyMoney))
+	for index, val := range agent.historyMoney {
+		historyMoney[index] = val
 	}
 	record := make([]IncomeRecord, len(agent.incomeRecord), len(agent.incomeRecord))
 	for index, val := range agent.incomeRecord {

@@ -105,7 +105,7 @@ func ReadConf(path string) *DBinfo {
 }
 
 func init() {
-	dbinfo := ReadConf("backTrace/config.conf")
+	dbinfo := ReadConf("config.conf")
 	dataSource := fmt.Sprintf("%s:%s@%s(%s:%d)/%s?parseTime=true&loc=Local&sql_mode=''", dbinfo.USERNAME, dbinfo.PASSWORD, dbinfo.NETWORK, dbinfo.SERVER, dbinfo.PORT, dbinfo.DATABASE)
 	fmt.Println(dataSource)
 	DB, err = sqlx.Open("mysql", dataSource)

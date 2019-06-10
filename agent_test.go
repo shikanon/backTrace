@@ -42,7 +42,7 @@ func TestMoneyAgent_GetProfileData(t *testing.T) {
 		lenOfHistory := len(result.HistoryMoney)
 		lenOfStocks := len(stockData)
 		if lenOfHistory != lenOfStocks {
-			testLogger.Fatal("The len of HistoryMoneyRecord should be the same with the len of StockData !")
+			testLogger.Fatalf("The len of HistoryMoneyRecord ( %d ) should be the same with the len of StockData ( %d ) !", lenOfHistory, lenOfStocks)
 		}
 	} else {
 		testLogger.Fatal("can't find the stock in the database!")
