@@ -145,7 +145,6 @@ func (agent *MoneyAgent) buy(yestoday *StockDailyData, today *StockDailyData, op
 		//涨停，买入不了,跳转到hold，然后结束
 		if (today.Close-yestoday.Close)/yestoday.Close > 0.0998 {
 			agent.hold(yestoday, today, opStready)
-			fmt.Printf("涨停!!!,无法买入, 时间：%s, 昨天股价: %.2f, 今天股价: %.2f\n", today.Date, yestoday.Close, today.Close)
 			return
 		}
 	}
