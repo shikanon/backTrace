@@ -1,5 +1,10 @@
 package backTrace
 
+import (
+	"errors"
+	"time"
+)
+
 //评估器
 type Estimator struct {
 	TotalReturnRate   float32 //收益率
@@ -9,21 +14,30 @@ type Estimator struct {
 	BetaEarnings      float32 // Beta收益
 }
 
-//交易
-type Transaction struct {
-	initCapital  float32
-	finalCapital float32
-	record       []*TransRecord
+type IncommeRecord struct {
+	buyDate    time.Time
+	buyVol     int
+	initMoney  float32
+	finalMoney float32
 }
 
-func (e *Estimator) Estimate(trans *Transaction) {
+//交易
+type Transaction struct {
+	InitCapital  float32
+	FinalCapital float32
+	HistoryMoney []*MoneyRecord
+	Record       []*IncommeRecord
+}
+
+func (e *Estimator) Estimate(trans *Transaction) error {
 	var yearNum int
-	e.TotalReturnRate = (trans.finalCapital - trans.initCapital) / trans.initCapital
-	recordLength := len(trans.record)
+	e.TotalReturnRate = (trans.FinalCapital - trans.InitCapital) / trans.InitCapital
+	recordLength := len(trans.Record)
 	if recordLength > 0 {
-		yearNum = trans.record[recordLength].Date.Year() - trans.record[0].Date.Year()
+		yearNum = trans.HistoryMoney[recordLength].date.Year() - trans.HistoryMoney[0].date.Year()
 	} else {
-		panic("Transaction record cann't be null!")
+		return errors.New("Transaction record cann't be null!")
 	}
 	e.ReturnRatePerYear = e.TotalReturnRate / float32(yearNum)
+	return nil
 }
