@@ -8,7 +8,6 @@ import (
 )
 
 func TestGetStock(t *testing.T) {
-	var stock *StockDailyData
 	testLogger := logrus.WithFields(logrus.Fields{
 		"function": "TestGetStock()",
 	})
@@ -16,10 +15,9 @@ func TestGetStock(t *testing.T) {
 	if err != nil {
 		testLogger.Fatal(err)
 	}
-	if len(result) > 0 {
-		testLogger.Infof("find stock code numbers is %d", len(result))
-		stock = result[0]
-		assert.Equal(t, stock.Code, "600018")
+	if result.Length > 0 {
+		testLogger.Infof("find stock code numbers is %d", result.Length)
+		assert.Equal(t, result.Code[0], "600018")
 	} else {
 		testLogger.Fatal("can't find the stock in the database!")
 	}

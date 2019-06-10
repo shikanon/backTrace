@@ -16,17 +16,17 @@ func TestAnalyzer(t *testing.T) {
 	if err != nil {
 		testLogger.Fatal(err)
 	}
-	if len(stockData) > 0 {
-		testLogger.Infof("find stock code numbers is %d", len(stockData))
-		buy := BreakOutStrategyBuy{}
-		sell := BreakOutStrategySell{}
+	if stockData.Length > 0 {
+		testLogger.Infof("find stock code numbers is %d", stockData.Length)
+		buy := BreakOutStrategyBuy{WindowsNum: 60}
+		sell := BreakOutStrategySell{WindowsNum: 40}
 		ana := Analyzer{BuyPolicies: []Strategy{&buy},
 			SellPolicies: []Strategy{&sell}}
 		res, err := ana.Analyse(stockData)
 		if err != nil {
 			testLogger.Fatal("analyse function is err!", err)
 		}
-		assert.Equal(t, len(res), len(stockData))
+		assert.Equal(t, len(res), stockData.Length)
 		hold_n := 0
 		sell_n := 0
 		buy_n := 0

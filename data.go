@@ -94,6 +94,23 @@ func ConvColumnData(stock Stock) *StockColumnData {
 		data.PChange[i] = s.PChange
 		data.PChangeF[i] = s.PChangeF
 		data.PChangeB[i] = s.PChangeB
+		data.OpenF[i] = s.OpenF
+		data.CloseF[i] = s.CloseF
+		data.HighF[i] = s.HighF
+		data.LowF[i] = s.LowF
+		data.PreCloseF[i] = s.PreCloseF
+		data.Volume[i] = s.Volume
+		data.Amount[i] = s.Amount
+		data.Turnover[i] = s.Turnover
+		data.TurnoverF[i] = s.TurnoverF
+		data.VolumeRatio[i] = s.VolumeRatio
+		data.PE[i] = s.PE
+		data.PETTM[i] = s.PETTM
+		data.TotalShare[i] = s.TotalShare
+		data.FloatShare[i] = s.FloatShare
+		data.FreeShare[i] = s.FreeShare
+		data.TotalMarketValue[i] = s.TotalMarketValue
+		data.FloatMarketValue[i] = s.FloatMarketValue
 	}
 	return data
 }
@@ -103,17 +120,37 @@ func ConvRowData(s *StockColumnData) Stock {
 	var length = s.Length
 	for i := 0; i < length; i++ {
 		data := &StockDailyData{
-			Date:     s.Date[i],
-			Code:     s.Code[i],
-			Open:     s.Open[i],
-			Close:    s.Close[i],
-			High:     s.High[i],
-			Low:      s.Low[i],
-			PreClose: s.PreClose[i],
-			Change:   s.Change[i],
-			PChange:  s.PChange[i],
-			PChangeF: s.PChangeF[i],
-			PChangeB: s.PChangeB[i],
+			Date:             s.Date[i],
+			Code:             s.Code[i],
+			Open:             s.Open[i],
+			Close:            s.Close[i],
+			High:             s.High[i],
+			Low:              s.Low[i],
+			PreClose:         s.PreClose[i],
+			Change:           s.Change[i],
+			PChange:          s.PChange[i],
+			PChangeF:         s.PChangeF[i],
+			PChangeB:         s.PChangeB[i],
+			OpenF:            s.OpenF[i],
+			CloseF:           s.CloseF[i],
+			HighF:            s.HighF[i],
+			LowF:             s.LowF[i],
+			PreCloseF:        s.PreCloseF[i],
+			Volume:           s.Volume[i],
+			Amount:           s.Amount[i],
+			Turnover:         s.Turnover[i],
+			TurnoverF:        s.TurnoverF[i],
+			VolumeRatio:      s.VolumeRatio[i],
+			PE:               s.PE[i],
+			PETTM:            s.PETTM[i],
+			PB:               s.PB[i],
+			PS:               s.PS[i],
+			PSTTM:            s.PSTTM[i],
+			TotalShare:       s.TotalShare[i],
+			FloatShare:       s.FloatShare[i],
+			FreeShare:        s.FreeShare[i],
+			TotalMarketValue: s.TotalMarketValue[i],
+			FloatMarketValue: s.FloatMarketValue[i],
 		}
 		stock = append(stock, data)
 	}
@@ -121,7 +158,7 @@ func ConvRowData(s *StockColumnData) Stock {
 }
 
 // get stock data
-func GetSockData(code string) (Stock, error) {
+func GetSockData(code string) (StockColumnData, error) {
 	var rowData Stock
 	contextLogger := logrus.WithFields(logrus.Fields{
 		"function": "GetStock()",
@@ -130,7 +167,40 @@ func GetSockData(code string) (Stock, error) {
 	columnData, err := LoadLocalData(code)
 	contextLogger.Info(" the stock number is ", columnData.Length)
 	if os.IsNotExist(err) {
-		contextLogger.Info("star query database!")
+		contextLogger.Info("star query database!", code)
+		sqlstm := fmt.Sprintf("select * from stock_daily_data where code=%s", code)
+		contextLogger.Info(sqlstm)
+		err = DB.Select(&rowData, sqlstm)
+		if err != nil {
+			contextLogger.Warn(err)
+			return columnData, nil
+		}
+		columnData = *ConvColumnData(rowData)
+		err = SaveLocalData(code, columnData)
+		if err != nil {
+			contextLogger.Warn(err)
+			return columnData, nil
+		}
+		return columnData, nil
+	}
+	if err != nil {
+		contextLogger.Fatal(err)
+		return columnData, err
+	}
+	return columnData, nil
+}
+
+// get stock data for row stock
+func GetRowSockData(code string) (Stock, error) {
+	var rowData Stock
+	contextLogger := logrus.WithFields(logrus.Fields{
+		"function": "GetStock()",
+		"code":     code,
+	})
+	columnData, err := LoadLocalData(code)
+	contextLogger.Info(" the stock number is ", columnData.Length)
+	if os.IsNotExist(err) {
+		contextLogger.Info("star query database!", code)
 		sqlstm := fmt.Sprintf("select * from stock_daily_data where code=%s", code)
 		contextLogger.Info(sqlstm)
 		err = DB.Select(&rowData, sqlstm)

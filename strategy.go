@@ -18,9 +18,9 @@ type Analyzer struct {
 	SellPolicies []Strategy
 }
 
-func (ana *Analyzer) Analyse(data Stock) ([]int, error) {
+func (ana *Analyzer) Analyse(data StockColumnData) ([]int, error) {
 	var err error
-	length := len(data)
+	length := data.Length
 	var result = make([]int, length)
 	var bs = make([]bool, length) // 是否买入
 	var ss = make([]bool, length) // 是否卖出
@@ -81,10 +81,12 @@ func (ana *Analyzer) Analyse(data Stock) ([]int, error) {
 }
 
 type Strategy interface {
-	Do(Stock) ([]bool, error)
+	Do(StockColumnData) ([]bool, error)
 }
 
-type BreakOutStrategyBuy struct{}
+type BreakOutStrategyBuy struct {
+	WindowsNum int
+}
 
 func Mean(value []float32) float32 {
 	var sumValue float32
@@ -95,29 +97,24 @@ func Mean(value []float32) float32 {
 }
 
 // 策略初加工所有股票数据
-func (bos *BreakOutStrategyBuy) Process(slist []*Stock) []*Stock {
+func (strag *BreakOutStrategyBuy) Process(slist []*Stock) []*Stock {
 	return slist
 }
 
 // 根据特征字段判断是否买入
-func (bos *BreakOutStrategyBuy) Do(s Stock) ([]bool, error) {
-	length := len(s)
-	N := 60
-	if length < N {
+func (strag *BreakOutStrategyBuy) Do(s StockColumnData) ([]bool, error) {
+	length := s.Length
+	if length < strag.WindowsNum {
 		err := errors.New("stock data is too short and cann't use this strategy!")
 		return nil, err
 	}
 
-	var closeArray = make([]float32, length)
 	var result = make([]bool, length)
 	var ma = make([]float32, length)
 
-	for i, data := range s {
-		closeArray[i] = data.Close
-	}
-	for i, c := range closeArray {
-		if i >= N {
-			ma[i] = Mean(closeArray[i-N : i])
+	for i, c := range s.Close {
+		if i >= strag.WindowsNum {
+			ma[i] = Mean(s.Close[i-strag.WindowsNum : i])
 			if c > ma[i] {
 				result[i] = true
 			}
@@ -126,32 +123,29 @@ func (bos *BreakOutStrategyBuy) Do(s Stock) ([]bool, error) {
 	return result, nil
 }
 
-type BreakOutStrategySell struct{}
+type BreakOutStrategySell struct {
+	WindowsNum int
+}
 
 // 策略初加工所有股票数据
-func (bos *BreakOutStrategySell) Process(slist []*Stock) []*Stock {
+func (strag *BreakOutStrategySell) Process(slist []*Stock) []*Stock {
 	return slist
 }
 
 // 根据特征字段判断是否卖出
-func (bos *BreakOutStrategySell) Do(s Stock) ([]bool, error) {
-	length := len(s)
-	N := 60
-	if length < N {
+func (strag *BreakOutStrategySell) Do(s StockColumnData) ([]bool, error) {
+	length := s.Length
+	if length < strag.WindowsNum {
 		err := errors.New("stock data is too short and cann't use this strategy!")
 		return nil, err
 	}
 
-	var closeArray = make([]float32, length)
 	var result = make([]bool, length)
 	var ma = make([]float32, length)
 
-	for i, data := range s {
-		closeArray[i] = data.Close
-	}
-	for i, c := range closeArray {
-		if i >= N {
-			ma[i] = Mean(closeArray[i-N : i])
+	for i, c := range s.Close {
+		if i >= strag.WindowsNum {
+			ma[i] = Mean(s.Close[i-strag.WindowsNum : i])
 			if c < ma[i] {
 				result[i] = true
 			}

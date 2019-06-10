@@ -81,9 +81,10 @@ func (agent *MoneyAgent) Init() {
 }
 
 //资金经理开始干活了,他需要对这个股票的所有数据进行分析
-func (agent *MoneyAgent) WorkForSingle(stocks Stock) {
+func (agent *MoneyAgent) WorkForSingle(stockdata StockColumnData) {
+	var stocks Stock
 	//分析数据，获得买入卖出操作指令
-	points, err := agent.Analyzer.Analyse(stocks)
+	points, err := agent.Analyzer.Analyse(stockdata)
 	if err != nil {
 		fmt.Printf("出现异常，退出程序：%s", err)
 		return
@@ -94,7 +95,9 @@ func (agent *MoneyAgent) WorkForSingle(stocks Stock) {
 		fmt.Printf("date: %s,code :%s, 策略返回结果是： %s\n",stocks[index].Date,stocks[index].Code,value)
 	}*/
 
-	lastDay := len(stocks) - 1
+	lastDay := stockdata.Length - 1
+
+	stocks = ConvRowData(&stockdata)
 
 	for index, dayData := range stocks {
 

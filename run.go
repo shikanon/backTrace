@@ -22,7 +22,7 @@ func RunBacktrace() {
 	contextLogger := logrus.WithFields(logrus.Fields{
 		"function": "RunBacktrace()",
 	})
-	var stocks []*Stock
+	var stocks []*StockColumnData
 	for _, code := range GetAllSockCode() {
 		stock, err := GetSockData(code)
 		if err != nil {
