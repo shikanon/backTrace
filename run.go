@@ -1,5 +1,7 @@
 package backTrace
 
+import "fmt"
+
 func init() {
 	/*	// Log as JSON instead of the default ASCII formatter.
 		logrus.SetFormatter(&logrus.TextFormatter{})
@@ -20,15 +22,16 @@ func RunBacktrace() {
 		break
 	}
 
-	initMoney := MoneyRecord{totalMoney: 10000, freeMoney: 10000}
-
 	//初始化分析者
 	buy := BreakOutStrategyBuy{}
-	sell := BreakOutStrategyBuy{}
+	sell := BreakOutStrategySell{}
 	ana := Analyzer{BuyPolicies: []Strategy{&buy},
 		SellPolicies: []Strategy{&sell}}
 
-	agent := MoneyAgent{currentMoney: initMoney, Analyzer: ana}
+	agent := MoneyAgent{initMoney: 10000, Analyzer: ana}
+
+	//经理需要做好准备后才能开始工作
+	agent.Init()
 
 	//经理根据指定的策略对单只股票进行操作
 	for _, stock := range stocks {
@@ -36,6 +39,12 @@ func RunBacktrace() {
 	}
 
 	//输出交易信息
-	agent.PrintHistoryInfo()
+	r := agent.GetProfileData()
+	fmt.Printf("Init:%.2f, final: %.2f \n", r.InitCapital, r.FinalCapital)
+	for _, record := range r.Record {
+		fmt.Printf("beforBuy: %.2f , afterSell: %.2f, buyDate: %s, buyVol: %d, buyPrice: %.2f, sellDate:%s,"+
+			" sellVol: %d, sellPrice:%.2f \n", record.initMoney, record.finalMoney, record.buyDate, record.buyVol, record.buyPrice,
+			record.sellDate, record.sellVol, record.sellPrice)
+	}
 
 }
