@@ -1,8 +1,9 @@
 package backTrace
 
 import (
-	"github.com/sirupsen/logrus"
 	"testing"
+
+	"github.com/sirupsen/logrus"
 )
 
 func TestMoneyAgent_GetProfileData(t *testing.T) {
@@ -11,8 +12,10 @@ func TestMoneyAgent_GetProfileData(t *testing.T) {
 		"function": "TestMoneyAgent_GetProfileData()",
 	})
 
-	stockData := GetSockData("600018")
-
+	stockData, err := GetSockData("600018")
+	if err != nil {
+		testLogger.Warn(err)
+	}
 	if len(stockData) > 0 {
 		testLogger.Infof("find stock code numbers is %d", len(stockData))
 		//初始化分析者
@@ -30,6 +33,11 @@ func TestMoneyAgent_GetProfileData(t *testing.T) {
 		agent.WorkForSingle(stockData)
 
 		result := agent.GetProfileData()
+		estimator, err := CreateEstimator(&result)
+		if err != nil {
+			testLogger.Fatal(err)
+		}
+		testLogger.Println(estimator.String())
 
 		if result.InitCapital < 0 {
 			testLogger.Fatal("the InitCapital can't be less than 0!")
@@ -45,7 +53,8 @@ func TestMoneyAgent_GetProfileData(t *testing.T) {
 			testLogger.Fatalf("The len of HistoryMoneyRecord ( %d ) should be the same with the len of StockData ( %d ) !", lenOfHistory, lenOfStocks)
 		}
 	} else {
-		testLogger.Fatal("can't find the stock in the database!")
+		testLogger.Fatal("can't find the stock in the database! the function GetSockData() is error!")
+		testLogger.Println(err)
 	}
 
 }

@@ -33,31 +33,31 @@ func (tran *TransRecord) string() string {
 
 //资金状态记录
 type MoneyRecord struct {
-	date       time.Time           //日期
-	myStocks   map[string]*MyStock //当前持有的股票
-	freeMoney  float32             //空闲资金
-	totalMoney float32             //总资金, 等于股票 + 空闲资金
+	Date       time.Time           //日期
+	MyStocks   map[string]*MyStock //当前持有的股票
+	FreeMoney  float32             //空闲资金
+	TotalMoney float32             //总资金, 等于股票 + 空闲资金
 }
 
 func (mr *MoneyRecord) string() string {
-	return fmt.Sprintf("date: %s, total: %f, free: %f", mr.date, mr.totalMoney, mr.freeMoney)
+	return fmt.Sprintf("date: %s, total: %f, free: %f", mr.Date, mr.TotalMoney, mr.FreeMoney)
 }
 
 //TODO 持有数目类型应该是Int
 type IncomeRecord struct {
-	buyDate    time.Time //买入日期
-	buyVol     int32     //买入股数
-	buyPrice   float32   //买入价格
-	sellDate   time.Time //卖出日期
-	sellVol    int32     //卖出股数
-	sellPrice  float32   //卖出价格
-	initMoney  float32   //买入前资金
-	finalMoney float32   //卖出后资金
+	BuyDate    time.Time //买入日期
+	BuyVol     int32     //买入股数
+	BuyPrice   float32   //买入价格
+	SellDate   time.Time //卖出日期
+	SellVol    int32     //卖出股数
+	SellPrice  float32   //卖出价格
+	InitMoney  float32   //买入前资金
+	FinalMoney float32   //卖出后资金
 }
 
 //检查一条记录是否完整
 func (record *IncomeRecord) isFinished() bool {
-	return record.buyVol != 0 && record.sellVol != 0
+	return record.BuyVol != 0 && record.SellVol != 0
 }
 
 /*func (record *IncomeRecord) string() string {
@@ -77,7 +77,7 @@ type MoneyAgent struct {
 
 func (agent *MoneyAgent) Init() {
 	//经理第一天上班，资金状态需要初始化
-	agent.currentMoney = MoneyRecord{totalMoney: agent.initMoney, freeMoney: agent.initMoney, myStocks: make(map[string]*MyStock)}
+	agent.currentMoney = MoneyRecord{TotalMoney: agent.initMoney, FreeMoney: agent.initMoney, MyStocks: make(map[string]*MyStock)}
 }
 
 //资金经理开始干活了,他需要对这个股票的所有数据进行分析
@@ -147,13 +147,13 @@ func (agent *MoneyAgent) buy(yestoday *StockDailyData, today *StockDailyData, op
 		}
 	}
 
-	maxPiece := agent.currentMoney.freeMoney / today.Close //粗略计算可买股数
+	maxPiece := agent.currentMoney.FreeMoney / today.Close //粗略计算可买股数
 	totalCost := maxPiece * today.Close                    //粗略估计总的费用
 	fee := totalCost * RateBuy                             //计算交易费
 
 	for true {
 		//判断扣除手续费之后，算上手续费后，不足购买maxPiece 股，并且maxPiece>1,可以减少买入股数，以完成交易
-		if totalCost > agent.currentMoney.freeMoney-fee {
+		if totalCost > agent.currentMoney.FreeMoney-fee {
 			maxPiece -= 1
 			totalCost = maxPiece * today.Close
 			fee = totalCost * RateBuy
@@ -170,24 +170,24 @@ func (agent *MoneyAgent) buy(yestoday *StockDailyData, today *StockDailyData, op
 	}
 
 	//先检查是否有持有当前股票
-	myStock := agent.currentMoney.myStocks[today.Code]
+	myStock := agent.currentMoney.MyStocks[today.Code]
 
 	// 为空则表示之前没有持有该股票
 	if myStock == nil {
-		agent.currentMoney.myStocks[today.Code] = &MyStock{0, 0}
-		myStock = agent.currentMoney.myStocks[today.Code]
+		agent.currentMoney.MyStocks[today.Code] = &MyStock{0, 0}
+		myStock = agent.currentMoney.MyStocks[today.Code]
 	} else { //有值说明之前持有股票，股价的变化需要更新总资金数
 		oldTotal := myStock.price * float32(myStock.vol)
 		newTotal := float32(myStock.vol) * today.Close
-		agent.currentMoney.totalMoney -= oldTotal
-		agent.currentMoney.totalMoney += newTotal
+		agent.currentMoney.TotalMoney -= oldTotal
+		agent.currentMoney.TotalMoney += newTotal
 	}
 
-	agent.currentMoney.freeMoney -= totalCost //扣除买股的钱
-	agent.currentMoney.freeMoney -= fee       //扣除手续费
-	agent.currentMoney.date = today.Date
+	agent.currentMoney.FreeMoney -= totalCost //扣除买股的钱
+	agent.currentMoney.FreeMoney -= fee       //扣除手续费
+	agent.currentMoney.Date = today.Date
 
-	agent.currentMoney.totalMoney -= fee //购买了股票，总资金的变化只有减去
+	agent.currentMoney.TotalMoney -= fee //购买了股票，总资金的变化只有减去
 
 	//记录股数的变化
 	myStock.vol += int32(maxPiece)
@@ -202,7 +202,7 @@ func (agent *MoneyAgent) buy(yestoday *StockDailyData, today *StockDailyData, op
 func (agent *MoneyAgent) sell(yestoday *StockDailyData, today *StockDailyData, opStready int) {
 
 	//先检查是否有持有当前股票
-	myStock := agent.currentMoney.myStocks[today.Code]
+	myStock := agent.currentMoney.MyStocks[today.Code]
 
 	//没有持有当前股票,什么也做不了  或者  第一天的交易命令，默认什么都不做
 	if myStock == nil || yestoday == nil {
@@ -220,16 +220,16 @@ func (agent *MoneyAgent) sell(yestoday *StockDailyData, today *StockDailyData, o
 
 	//TODO 没有考虑不能完全卖出去的情况
 	//不再持有股票
-	delete(agent.currentMoney.myStocks, today.Code)
+	delete(agent.currentMoney.MyStocks, today.Code)
 
 	totalSell := float32(vol) * today.Close //计算卖出后可得多少钱
 	fee := totalSell * RateSell
 	totalSell -= fee                          //扣除卖出手续费
-	agent.currentMoney.freeMoney += totalSell //更新空闲资金
-	agent.currentMoney.date = today.Date      //记录资金变化的时间
+	agent.currentMoney.FreeMoney += totalSell //更新空闲资金
+	agent.currentMoney.Date = today.Date      //记录资金变化的时间
 
-	agent.currentMoney.totalMoney -= oldPrice * float32(vol) //减去股票的钱(昨天的价位计算得到的)
-	agent.currentMoney.totalMoney += totalSell               //加上卖出后得到的钱
+	agent.currentMoney.TotalMoney -= oldPrice * float32(vol) //减去股票的钱(昨天的价位计算得到的)
+	agent.currentMoney.TotalMoney += totalSell               //加上卖出后得到的钱
 
 	//保存状态
 	agent.saveStatus(today.Date, opStready, OPT_SELL, yestoday, today)
@@ -237,7 +237,7 @@ func (agent *MoneyAgent) sell(yestoday *StockDailyData, today *StockDailyData, o
 
 //继续持有股票
 func (agent *MoneyAgent) hold(yestoday *StockDailyData, today *StockDailyData, opStready int) {
-	myStock := agent.currentMoney.myStocks[today.Code]
+	myStock := agent.currentMoney.MyStocks[today.Code]
 	//只有已经持有股票才需要更新资金
 	if myStock != nil {
 		vol := myStock.vol
@@ -246,11 +246,11 @@ func (agent *MoneyAgent) hold(yestoday *StockDailyData, today *StockDailyData, o
 			//记录股价的变化导致资金变化
 			oldPrice := myStock.price
 			myStock.price = today.Close                                         //更新股价
-			agent.currentMoney.totalMoney -= oldPrice * float32(myStock.vol)    //减去旧的股票资金
-			agent.currentMoney.totalMoney += today.Close * float32(myStock.vol) //更新新的股票资金
+			agent.currentMoney.TotalMoney -= oldPrice * float32(myStock.vol)    //减去旧的股票资金
+			agent.currentMoney.TotalMoney += today.Close * float32(myStock.vol) //更新新的股票资金
 		}
 	}
-	agent.currentMoney.date = today.Date //更新时间
+	agent.currentMoney.Date = today.Date //更新时间
 
 	//保存状态
 	agent.saveStatus(today.Date, opStready, OPT_HOLD, yestoday, today)
@@ -311,16 +311,16 @@ func (agent *MoneyAgent) saveStatus(date time.Time, opStready int, optFinal int,
 		}
 
 		if optFinal == OPT_BUY {
-			latestRecord.buyVol = agent.currentMoney.myStocks[today.Code].vol
-			latestRecord.buyPrice = today.Close
-			latestRecord.buyDate = today.Date
-			latestRecord.initMoney = agent.currentMoney.totalMoney
+			latestRecord.BuyVol = agent.currentMoney.MyStocks[today.Code].vol
+			latestRecord.BuyPrice = today.Close
+			latestRecord.BuyDate = today.Date
+			latestRecord.InitMoney = agent.currentMoney.TotalMoney
 		} else {
 			//TODO 没有考虑不能完全卖出去的情况
-			latestRecord.sellVol = latestRecord.buyVol
-			latestRecord.sellPrice = today.Close
-			latestRecord.sellDate = today.Date
-			latestRecord.finalMoney = agent.currentMoney.totalMoney
+			latestRecord.SellVol = latestRecord.BuyVol
+			latestRecord.SellPrice = today.Close
+			latestRecord.SellDate = today.Date
+			latestRecord.FinalMoney = agent.currentMoney.TotalMoney
 		}
 
 		//新纪录需要添加到切片中
@@ -358,7 +358,7 @@ type ProfileData struct {
 //返回评测需要用到的数据
 func (agent *MoneyAgent) GetProfileData() ProfileData {
 	initCapital := agent.initMoney
-	finalCapital := agent.currentMoney.totalMoney
+	finalCapital := agent.currentMoney.TotalMoney
 	historyMoney := make([]MoneyRecord, len(agent.historyMoney), len(agent.historyMoney))
 	for index, val := range agent.historyMoney {
 		historyMoney[index] = val

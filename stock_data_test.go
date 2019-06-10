@@ -12,7 +12,10 @@ func TestGetStock(t *testing.T) {
 	testLogger := logrus.WithFields(logrus.Fields{
 		"function": "TestGetStock()",
 	})
-	result := GetSockData("600018")
+	result, err := GetSockData("600018")
+	if err != nil {
+		testLogger.Fatal(err)
+	}
 	if len(result) > 0 {
 		testLogger.Infof("find stock code numbers is %d", len(result))
 		stock = result[0]

@@ -1,6 +1,10 @@
 package backTrace
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/sirupsen/logrus"
+)
 
 func init() {
 	/*	// Log as JSON instead of the default ASCII formatter.
@@ -15,9 +19,15 @@ func init() {
 }
 
 func RunBacktrace() {
+	contextLogger := logrus.WithFields(logrus.Fields{
+		"function": "RunBacktrace()",
+	})
 	var stocks []*Stock
 	for _, code := range GetAllSockCode() {
-		stock := GetSockData(code)
+		stock, err := GetSockData(code)
+		if err != nil {
+			contextLogger.Fatal(err)
+		}
 		stocks = append(stocks, &stock)
 		break
 	}
@@ -42,9 +52,13 @@ func RunBacktrace() {
 	r := agent.GetProfileData()
 	fmt.Printf("Init:%.2f, final: %.2f \n", r.InitCapital, r.FinalCapital)
 	for _, record := range r.Record {
-		fmt.Printf("beforBuy: %.2f , afterSell: %.2f, buyDate: %s, buyVol: %d, buyPrice: %.2f, sellDate:%s,"+
-			" sellVol: %d, sellPrice:%.2f \n", record.initMoney, record.finalMoney, record.buyDate, record.buyVol, record.buyPrice,
-			record.sellDate, record.sellVol, record.sellPrice)
+		contextLogger.Printf("beforBuy: %.2f , afterSell: %.2f, buyDate: %s, buyVol: %d, buyPrice: %.2f, sellDate:%s,"+
+			" sellVol: %d, sellPrice:%.2f \n", record.InitMoney, record.FinalMoney, record.BuyDate, record.BuyVol, record.BuyPrice,
+			record.SellDate, record.SellVol, record.SellPrice)
 	}
-
+	estimator, err := CreateEstimator(&r)
+	if err != nil {
+		contextLogger.Fatal(err)
+	}
+	contextLogger.Println(estimator.String())
 }
