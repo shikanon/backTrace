@@ -58,3 +58,79 @@ func TestMoneyAgent_GetProfileData(t *testing.T) {
 	}
 
 }
+
+func testForBenchmark(code string) error {
+	stockData, err := GetSockData(code)
+	if err != nil {
+		return err
+	}
+	if stockData.Length > 0 {
+		//初始化分析者
+		buy := BreakOutStrategyBuy{WindowsNum: 60}
+		sell := BreakOutStrategySell{WindowsNum: 40}
+		ana := Analyzer{BuyPolicies: []Strategy{&buy},
+			SellPolicies: []Strategy{&sell}}
+
+		agent := MoneyAgent{initMoney: 10000, Analyzer: ana}
+
+		//经理需要做好准备后才能开始工作
+		agent.Init()
+
+		//经理根据指定的策略对单只股票进行操作
+		agent.WorkForSingle(stockData)
+
+		result := agent.GetProfileData()
+		_, err := CreateEstimator(&result)
+		if err != nil {
+			return err
+		}
+
+	} else {
+		return err
+	}
+	return nil
+}
+
+func BenchmarkGetSockData(b *testing.B) {
+	b.StartTimer() //重新开始时间
+	for i := 0; i < b.N; i++ {
+		GetSockData("600018")
+	}
+}
+
+func BenchmarkAgent(b *testing.B) {
+	testLogger := logrus.WithFields(logrus.Fields{
+		"function": "BenchmarkAgent()",
+	})
+	code := "600018"
+	stockData, err := GetSockData(code)
+	if err != nil {
+		testLogger.Fatal(err)
+	}
+	if stockData.Length > 0 {
+		b.StartTimer() //重新开始时间
+		for i := 0; i < b.N; i++ {
+			//初始化分析者
+			buy := BreakOutStrategyBuy{WindowsNum: 60}
+			sell := BreakOutStrategySell{WindowsNum: 40}
+			ana := Analyzer{BuyPolicies: []Strategy{&buy},
+				SellPolicies: []Strategy{&sell}}
+
+			agent := MoneyAgent{initMoney: 10000, Analyzer: ana}
+
+			//经理需要做好准备后才能开始工作
+			agent.Init()
+
+			//经理根据指定的策略对单只股票进行操作
+			agent.WorkForSingle(stockData)
+
+			result := agent.GetProfileData()
+			_, err := CreateEstimator(&result)
+			if err != nil {
+				testLogger.Fatal(err)
+			}
+		}
+	} else {
+		testLogger.Fatal(err)
+	}
+}

@@ -165,7 +165,7 @@ func GetSockData(code string) (StockColumnData, error) {
 		"code":     code,
 	})
 	columnData, err := LoadLocalData(code)
-	contextLogger.Info(" the stock number is ", columnData.Length)
+	contextLogger.Debug(" the stock number is ", columnData.Length)
 	if os.IsNotExist(err) {
 		contextLogger.Info("star query database!", code)
 		sqlstm := fmt.Sprintf("select * from stock_daily_data where code=%s", code)

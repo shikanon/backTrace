@@ -33,8 +33,8 @@ func RunBacktrace() {
 	}
 
 	//初始化分析者
-	buy := BreakOutStrategyBuy{}
-	sell := BreakOutStrategySell{}
+	buy := BreakOutStrategyBuy{WindowsNum: 60}
+	sell := BreakOutStrategySell{WindowsNum: 60}
 	ana := Analyzer{BuyPolicies: []Strategy{&buy},
 		SellPolicies: []Strategy{&sell}}
 
