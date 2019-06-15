@@ -108,6 +108,7 @@ func BenchmarkAgent(b *testing.B) {
 		testLogger.Fatal(err)
 	}
 	if stockData.Length > 0 {
+		b.ResetTimer()
 		b.StartTimer() //重新开始时间
 		for i := 0; i < b.N; i++ {
 			//初始化分析者

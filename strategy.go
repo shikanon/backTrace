@@ -76,7 +76,6 @@ func (ana *Analyzer) Analyse(data StockColumnData) ([]int, error) {
 		}
 		result[i] = r
 	}
-
 	return result, nil
 }
 
