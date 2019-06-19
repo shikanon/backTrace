@@ -27,7 +27,7 @@ func (ana *Analyzer) Analyse(data StockColumnData) ([]int, error) {
 	n := 0
 	var preStrategy = make([]bool, length) //记录值，主要用于做多策略计算的
 	for _, strag := range ana.BuyPolicies {
-		bs, err = strag.Do(data)
+		bs, err = strag.Do(&data)
 		if err != nil {
 			return nil, err
 		}
@@ -47,7 +47,7 @@ func (ana *Analyzer) Analyse(data StockColumnData) ([]int, error) {
 	n = 0
 	preStrategy = make([]bool, length)
 	for _, strag := range ana.SellPolicies {
-		ss, err = strag.Do(data)
+		ss, err = strag.Do(&data)
 		if err != nil {
 			return nil, err
 		}
@@ -80,19 +80,11 @@ func (ana *Analyzer) Analyse(data StockColumnData) ([]int, error) {
 }
 
 type Strategy interface {
-	Do(StockColumnData) ([]bool, error)
+	Do(*StockColumnData) ([]bool, error)
 }
 
 type BreakOutStrategyBuy struct {
 	WindowsNum int
-}
-
-func Mean(value []float32) float32 {
-	var sumValue float32
-	for _, v := range value {
-		sumValue += v
-	}
-	return sumValue / float32(len(value))
 }
 
 // 策略初加工所有股票数据
@@ -101,7 +93,7 @@ func (strag *BreakOutStrategyBuy) Process(slist []*Stock) []*Stock {
 }
 
 // 根据特征字段判断是否买入
-func (strag *BreakOutStrategyBuy) Do(s StockColumnData) ([]bool, error) {
+func (strag *BreakOutStrategyBuy) Do(s *StockColumnData) ([]bool, error) {
 	length := s.Length
 	if length < strag.WindowsNum {
 		err := errors.New("stock data is too short and cann't use this strategy!")
@@ -132,7 +124,7 @@ func (strag *BreakOutStrategySell) Process(slist []*Stock) []*Stock {
 }
 
 // 根据特征字段判断是否卖出
-func (strag *BreakOutStrategySell) Do(s StockColumnData) ([]bool, error) {
+func (strag *BreakOutStrategySell) Do(s *StockColumnData) ([]bool, error) {
 	length := s.Length
 	if length < strag.WindowsNum {
 		err := errors.New("stock data is too short and cann't use this strategy!")
