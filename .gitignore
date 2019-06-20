@@ -14,4 +14,4 @@ pkg/
 # *.out
 
 # IDE
-.idea/
+.idea/*
