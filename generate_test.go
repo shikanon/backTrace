@@ -7,6 +7,8 @@ import (
 )
 
 func TestGenerateAllStrage(t *testing.T) {
-	reg := GenerateAllStrage()
-	assert.Equal(t, 172, len(reg.Names))
+	reg := GenerateAllBuyStrage()
+	assert.Equal(t, 86, len(reg.Names))
+	reg = GenerateAllSellStrage()
+	assert.Equal(t, 86, len(reg.Names))
 }
