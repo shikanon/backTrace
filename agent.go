@@ -5,14 +5,13 @@ import (
 	"time"
 )
 
-const OPT_BUY = 0 //买入
-
-const OPT_SELL = 1 //卖
-
-const OPT_HOLD = 2 //什么也不做
-
-const RateBuy = 0.003  //买入手续费
-const RateSell = 0.003 //卖出手续费
+const (
+	OPT_BUY  = 0     //买入
+	OPT_SELL = 1     //卖
+	OPT_HOLD = 2     //什么也不做
+	RateBuy  = 0.003 //买入手续费
+	RateSell = 0.003 //卖出手续费
+)
 
 type MyStock struct {
 	vol   int32   //持有股票量
@@ -212,7 +211,7 @@ func (agent *MoneyAgent) sell(yestoday *StockDailyData, today *StockDailyData, o
 		return
 	} else if (today.Close-yestoday.Close)/yestoday.Close < -0.0998 { //跌停，无法交易
 		agent.hold(yestoday, today, opStready)
-		fmt.Printf("跌停!!!,无法卖出,%s,昨天股价: %.2f, 今天股价: %.2f\n", today.Date, yestoday.Close, today.Close)
+		//fmt.Printf("跌停!!!,无法卖出,%s,昨天股价: %.2f, 今天股价: %.2f\n", today.Date, yestoday.Close, today.Close)
 		return
 	}
 
