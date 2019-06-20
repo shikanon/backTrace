@@ -2,6 +2,8 @@ package backTrace
 
 import (
 	"fmt"
+
+	"github.com/sirupsen/logrus"
 )
 
 // 调度接口
@@ -20,6 +22,9 @@ type LocalScheduler struct {
 
 //根据股票ID进行任务调度
 func (sc *LocalScheduler) schedulerTask(allCodes []string) {
+	schedulerLogger := logrus.WithFields(logrus.Fields{
+		"function": "schedulerTask()",
+	})
 
 	buyReg := GenerateAllBuyStrage()
 	sellReg := GenerateAllSellStrage()
@@ -39,7 +44,7 @@ func (sc *LocalScheduler) schedulerTask(allCodes []string) {
 		}
 	}
 
-	fmt.Printf("total tasks %d", len(tasks))
+	schedulerLogger.Infof("total tasks %d", len(tasks))
 
 	totalCores := sc.node.core
 	canRunTaskNum := totalCores / sc.coresForPerTask //计算总共有几个Task可以同时运行
@@ -62,29 +67,27 @@ func (sc *LocalScheduler) schedulerTask(allCodes []string) {
 			for {
 				task, ok := <-taskChan
 				if ok != true {
-					fmt.Printf(" Worker %s exist. because the chan is closed. \n", workerId)
+					schedulerLogger.Errorf(" Worker %s exist. because the chan is closed. \n", workerId)
 					break
 				}
 
-				buy, ok := buyReg.Value.Load(task.buyStragety)
-				if ok == false {
-					fmt.Printf(" There is no sell strategy named %s !! \n", task.buyStragety)
+				buy, err := buyReg.Load(task.buyStragety)
+				if err != nil {
+					schedulerLogger.Errorf(" There is no sell strategy named %s !! \n", task.buyStragety)
 				}
 
-				sell, ok := sellReg.Value.Load(task.sellStragety)
-				if ok == false {
-					fmt.Printf(" There is no buy strategy named %s !! \n", task.buyStragety)
+				sell, err := sellReg.Load(task.sellStragety)
+				if err != nil {
+					schedulerLogger.Errorf(" There is no buy strategy named %s !! \n", task.buyStragety)
 				}
 
 				stock, err := sc.cacheMap.Load(task.code)
 
 				if err != nil {
-					fmt.Printf("cacheMap get data by code %s got error: %s \n", task.code, err.Error())
+					schedulerLogger.Errorf("cacheMap get data by code %s got error: %s \n", task.code, err.Error())
 				} else {
-					x := buy.(Strategy)
-					y := sell.(Strategy)
-					ana := Analyzer{BuyPolicies: []Strategy{x},
-						SellPolicies: []Strategy{y}}
+					ana := Analyzer{BuyPolicies: []Strategy{buy},
+						SellPolicies: []Strategy{sell}}
 					agent := MoneyAgent{initMoney: 10000, Analyzer: ana}
 					//经理需要做好准备后才能开始工作
 					agent.Init()

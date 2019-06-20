@@ -8,5 +8,5 @@ func TestSchedulerTask(t *testing.T) {
 	var stocks StockMap
 	sc := LocalScheduler{node: node, coresForPerTask: 1, cacheMap: stocks}
 	allStocks := GetAllSockCode()
-	sc.schedulerTask(allStocks)
+	sc.schedulerTask(allStocks[:2])
 }
