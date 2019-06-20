@@ -1,6 +1,7 @@
 package backTrace
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"sync"
@@ -23,4 +24,21 @@ func (r *StrategyRegister) Regist(s interface{}) {
 	}
 	r.Names = append(r.Names, name)
 	r.Value.Store(name, s)
+}
+
+func (r *StrategyRegister) Load(name string) (strategy Strategy, err error) {
+	value, ok := r.Value.Load(name)
+	if !ok {
+		return nil, errors.New("Loaded failed! " + name + " is not in StrategyRegister.")
+	}
+	switch strag := value.(type) {
+	case BreakOutStrategyBuy:
+		strategy = &strag
+	case BreakOutStrategySell:
+		strategy = &strag
+	}
+	if strategy == nil {
+		return nil, errors.New("Error type in StrategyRegister! is not strategy, so can't find it!")
+	}
+	return strategy, nil
 }
