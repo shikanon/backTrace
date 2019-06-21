@@ -50,6 +50,19 @@ type StockDailyData struct {
 	FloatMarketValue sql.NullFloat64 `db:"float_market_value"` // 流通市值(万元)
 }
 
+type RewardRecord struct {
+	Code              string  `db:"code"`              //股票代码
+	SellStrategy      string  `db:"SellStrategy"`      //策略名称
+	BuyStrategy       string  `db:"BuyStrategy"`       //策略名称
+	TotalReturnRate   float32 `db:"TotalReturnRate"`   //收益率
+	ReturnRatePerYear float32 `db:"ReturnRatePerYear"` // 年化收益率
+	WinningProb       float32 `db:"WinningProb"`       //胜率
+	ProfitExpect      float32 `db:"ProfitExpect"`      //盈利期望
+	LossExpect        float32 `db:"LossExpect"`        //亏损期望
+	AlphaEarnings     float32 `db:"AlphaEarnings"`     // Alpha收益
+	BetaEarnings      float32 `db:"BetaEarnings"`      // Beta收益
+}
+
 // select concat(UPPER(SUBSTRING(COLUMN_NAME,1,1)),
 //     SUBSTRING(COLUMN_NAME,2,length(COLUMN_NAME)),
 //     (case DATA_TYPE
