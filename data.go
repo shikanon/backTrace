@@ -268,3 +268,29 @@ func GetAllSockCode() []string {
 	}
 	return codes
 }
+
+func SaveRewardRecord(record *RewardRecord) (res sql.Result, err error) {
+	InsertSQL := `"INSERT INTO reward_record (code, SellStrategy, BuyStrategy, TotalReturnRate, ReturnRatePerYear,
+		WinningProb, ProfitExpect, LossExpect, AlphaEarnings, BetaEarnings)
+		values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	res, err = DB.Exec(InsertSQL, record.Code, record.SellStrategy, record.BuyStrategy, record.TotalReturnRate, record.ReturnRatePerYear,
+		record.WinningProb, record.ProfitExpect, record.LossExpect, record.AlphaEarnings, record.BetaEarnings)
+	return res, err
+}
+
+func SaveBatchRewardRecord(records []*RewardRecord, minbatch int) ([]*RewardRecord, error) {
+	var err error
+	if len(records) < minbatch {
+		return records, err
+	}
+	InsertSQL := `"INSERT INTO reward_record (code, SellStrategy, BuyStrategy, TotalReturnRate, ReturnRatePerYear,
+		WinningProb, ProfitExpect, LossExpect, AlphaEarnings, BetaEarnings)
+		values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	tx := DB.MustBegin()
+	for _, record := range records {
+		_, err = tx.Exec(InsertSQL, record.Code, record.SellStrategy, record.BuyStrategy, record.TotalReturnRate, record.ReturnRatePerYear,
+			record.WinningProb, record.ProfitExpect, record.LossExpect, record.AlphaEarnings, record.BetaEarnings)
+	}
+	tx.Commit()
+	return nil, err
+}
