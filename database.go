@@ -16,6 +16,22 @@ var err error
 
 type Stock []*StockDailyData
 
+var schema = `
+CREATE TABLE IF NOT EXISTS reward_record(
+	code 	varchar(6),
+	SellStrategy 	varchar(255),
+	BuyStrategy		varchar(255),
+	TotalReturnRate 	float,
+	ReturnRatePerYear 	float,
+	WinningProb 	float,
+	ProfitExpect 	float,
+	LossExpect 	float,
+	AlphaEarnings 	float,
+	BetaEarnings 	float,
+	PRIMARY KEY (code,  SellStrategy, BuyStrategy)
+)ENGINE=MyISAM DEFAULT CHARSET=utf8;
+`
+
 type StockDailyData struct {
 	Date             time.Time       `db:"date"`
 	Code             string          `db:"code"`
@@ -129,4 +145,5 @@ func init() {
 	if err != nil {
 		logrus.Error(err)
 	}
+	DB.MustExec(schema)
 }
