@@ -12,7 +12,7 @@ func TestGenerateAllStrage(t *testing.T) {
 		"function": "TestGenerateAllStrage()",
 	})
 	regBuy := GenerateAllBuyStrage()
-	assert.Equal(t, 86, len(regBuy.Names))
+	assert.Equal(t, 89, len(regBuy.Names))
 	regSell := GenerateAllSellStrage()
 	assert.Equal(t, 86, len(regSell.Names))
 

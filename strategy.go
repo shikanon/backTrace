@@ -144,3 +144,47 @@ func (strag *BreakOutStrategySell) Do(s *StockColumnData) ([]bool, error) {
 	}
 	return result, nil
 }
+
+type KDJtStrategyBuy struct {
+	WindowsNum int
+	KWindows   int
+	DWindows   int
+}
+
+// 策略初加工所有股票数据
+func (strag *KDJtStrategyBuy) Process(slist []*Stock) []*Stock {
+	return slist
+}
+
+// 根据特征字段判断是否卖出
+func (strag *KDJtStrategyBuy) Do(s *StockColumnData) ([]bool, error) {
+	length := s.Length
+	if length < (strag.WindowsNum + strag.KWindows + strag.DWindows) {
+		err := errors.New("stock data is too short and cann't use this strategy!")
+		return nil, err
+	}
+	var result = make([]bool, length)
+	var rsv = make([]float32, length)
+	for i := range s.Close {
+		if i >= strag.WindowsNum {
+			hhv := Max(s.High[i-strag.WindowsNum : i])
+			llv := Min(s.Low[i-strag.WindowsNum : i])
+			rsv[i] = (s.Close[i] - llv) / (hhv - llv)
+		}
+		rsv[i] = 0
+	}
+	var kArrage = make([]float32, len(rsv))
+	var jArrage = make([]float32, len(rsv))
+	var dArrage = make([]float32, len(rsv))
+	for i := range rsv {
+		if i >= (strag.WindowsNum + strag.KWindows) {
+			kArrage[i] = Mean(rsv[i-strag.KWindows : i])
+			dArrage[i] = Mean(kArrage[i-strag.DWindows : i])
+			jArrage[i] = 3*kArrage[i] - 2*dArrage[i]
+			if jArrage[i] > kArrage[i] && kArrage[i] > dArrage[i] {
+				result[i] = true
+			}
+		}
+	}
+	return result, nil
+}

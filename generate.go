@@ -5,6 +5,10 @@ func GenerateAllBuyStrage() (reg StrategyRegister) {
 		buy := BreakOutStrategyBuy{WindowsNum: i}
 		reg.Regist(buy)
 	}
+	for i := 1; i <= 3; i++ {
+		kdjBuy := KDJtStrategyBuy{WindowsNum: 9 * i, KWindows: 3 * i, DWindows: 3 * i}
+		reg.Regist(kdjBuy)
+	}
 	return
 }
 
