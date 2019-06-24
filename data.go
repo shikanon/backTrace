@@ -4,9 +4,7 @@ import (
 	"database/sql"
 	"encoding/gob"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -174,13 +172,13 @@ func GetSockData(code string) (StockColumnData, error) {
 		contextLogger.Info(sqlstm)
 		err = DB.Select(&rowData, sqlstm)
 		if err != nil {
-			contextLogger.Fatal(err)
+			contextLogger.Warn(err)
 			return columnData, nil
 		}
 		columnData = *ConvColumnData(rowData)
 		err = SaveLocalData(code, columnData)
 		if err != nil {
-			contextLogger.Fatal(err)
+			contextLogger.Warn(err)
 			return columnData, nil
 		}
 		return columnData, nil
@@ -260,45 +258,13 @@ func LoadLocalData(code string) (StockColumnData, error) {
 
 func GetAllSockCode() []string {
 	var codes []string
-	var saveObj string
 	contextLogger := logrus.WithFields(logrus.Fields{
 		"function": "GetAllSockCode()",
 	})
-	filename := "./cache/all_stock_code_array.bin"
-	loadfile, err := os.Open(filename)
-	defer loadfile.Close()
-	if os.IsNotExist(err) {
-		contextLogger.Info("star to database select data!")
-		// 查询
-		err = DB.Select(&codes, "select code from stock_daily_data group by code")
-		if err != nil {
-			logrus.Error(err)
-		}
-		// 写缓存文件
-		for _, c := range codes {
-			if saveObj == "" {
-				saveObj = c
-			}
-			saveObj = saveObj + ";" + c
-		}
-		savefile, err := os.Create(filename)
-		defer savefile.Close()
-		if err != nil {
-			logrus.Warn(err)
-		}
-		_, err = savefile.WriteString(saveObj)
-		if err != nil {
-			logrus.Error(err)
-		}
-		return codes
-	} else if err != nil {
-		logrus.Error("can't find cache filename path:%v", err)
-	}
-	// 读缓存文件
-	if contents, err := ioutil.ReadAll(loadfile); err == nil {
-		codes = strings.Split(string(contents), ";")
-	} else {
-		logrus.Error(err)
+	contextLogger.Info("star!")
+	err = DB.Select(&codes, "select code from stock_daily_data group by code order by code")
+	if err != nil {
+		logrus.Warn(err)
 	}
 	return codes
 }

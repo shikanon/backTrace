@@ -111,11 +111,7 @@ type DBinfo struct {
 	DATABASE string
 }
 
-func ReadConf(path string) *DBinfo {
-	conf, err := config.NewConfig("ini", path)
-	if err != nil {
-		logrus.Fatal("Error:", err)
-	}
+func ReadConf(conf config.Configer) *DBinfo {
 	host := conf.String("db::host")
 	username := conf.String("db::user")
 	password := conf.String("db::password")
@@ -134,7 +130,7 @@ func ReadConf(path string) *DBinfo {
 }
 
 func init() {
-	dbinfo := ReadConf("config.conf")
+	dbinfo := ReadConf(gConf)
 	dataSource := fmt.Sprintf("%s:%s@%s(%s:%d)/%s?parseTime=true&loc=Local&sql_mode=''", dbinfo.USERNAME, dbinfo.PASSWORD, dbinfo.NETWORK, dbinfo.SERVER, dbinfo.PORT, dbinfo.DATABASE)
 	fmt.Println(dataSource)
 	DB, err = sqlx.Open("mysql", dataSource)

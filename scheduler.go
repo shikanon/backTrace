@@ -2,13 +2,85 @@ package backTrace
 
 import (
 	"fmt"
+	"github.com/go-redis/redis"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"strconv"
+	"strings"
 )
+
+const (
+	GenBeginFlag = "GenerateFlagBegin"
+	GenEndFlag   = "GenerateFlagEnd"
+)
+
+type CodeCacheList struct {
+	nodes []string
+}
+
+// 如果
+func (list *CodeCacheList) getNeedLoadFlag(code string) bool {
+	len := len(list.nodes)
+	for index, codeN := range list.nodes {
+		if codeN == code && index == len-1 {
+			return true
+		}
+	}
+	return false
+}
+
+//入参是新的需要缓存的Code，返回的是要移除的code
+func (list *CodeCacheList) insert(code string) string {
+
+	if len(list.nodes) == 0 {
+		panic("CodeCacheList 's len must more than 0!")
+	}
+
+	delCode := list.nodes[0]
+
+	for index := 0; index < len(list.nodes)-1; index++ {
+		list.nodes[index] = list.nodes[index+1]
+	}
+	list.nodes[len(list.nodes)-1] = code
+
+	return delCode
+}
+
+func TasksGenerate(buyReg *StrategyRegister, sellReg *StrategyRegister, codes []string, client *redis.Client) uint32 {
+	//var tasks []Task
+	_, err = client.Set(GenBeginFlag, "true", 0).Result()
+	if err != nil {
+		panic(err)
+	}
+
+	count := uint32(0)
+	//生成所有的Task
+	for _, code := range codes {
+		//获取买入策略
+		for _, buyName := range buyReg.Names {
+			//获取卖出策略
+			for _, sellName := range sellReg.Names {
+				//构建一个Task
+				//tasks = append(tasks, Task{code: code, buyStragety: buyName, sellStragety: sellName})
+				taskStr := code + "," + buyName + "," + sellName + "," + strconv.FormatInt(int64(count), 10)
+				client.RPush(taskQueueName, taskStr)
+				count += 1
+			}
+		}
+	}
+
+	_, err = client.Set(GenEndFlag, "true", 0).Result()
+	if err != nil {
+		panic(err)
+	}
+
+	return count
+}
 
 // 调度接口
 type Scheduler interface {
 	//入参是code数组，生成并启动Task
-	schedulerTask([]string)
+	schedulerTask(buyReg *StrategyRegister, sellReg *StrategyRegister, code []string, client *redis.Client)
 }
 
 // 单机调度器
@@ -16,39 +88,13 @@ type LocalScheduler struct {
 	node            Node
 	coresForPerTask int8
 	cacheMap        StockMap
-	//runningTasks    map[string]bool
 }
 
 //根据股票ID进行任务调度
-func (sc *LocalScheduler) schedulerTask(allCodes []string) {
+func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *StrategyRegister, codes []string, client *redis.Client) {
 	schedulerLogger := logrus.WithFields(logrus.Fields{
 		"function": "schedulerTask()",
 	})
-
-	buyReg := GenerateAllBuyStrage()
-	sellReg := GenerateAllSellStrage()
-
-	//计算总共的Task有多少
-	oneCodeNeedTest := uint32(len(buyReg.Names) * len(sellReg.Names)) //一个code需要测试这么多个策略组合
-	//allTaskCount := len(allCodes) * oneCodeNeedTest  //计算得到全部的Task数目，h个code 与 m个买策略 、 n个卖策略 笛卡尔积得到 h * m * n个 Task
-
-	//TODO Tasks切片在策略多了以后会很大,后续考虑指定长度,循环利用
-	//tasks := make([]Task,0,1000)
-	var tasks []Task
-
-	//生成所有的Task
-	for _, code := range allCodes {
-		//获取买入策略
-		for _, buyName := range buyReg.Names {
-			//获取卖出策略
-			for _, sellName := range sellReg.Names {
-				//构建一个Task
-				tasks = append(tasks, Task{code: code, buyStragety: buyName, sellStragety: sellName})
-			}
-		}
-	}
-
-	schedulerLogger.Infof("total tasks %d", len(tasks))
 
 	totalCores := sc.node.core
 	canRunTaskNum := uint32(totalCores / sc.coresForPerTask) //计算总共有几个Task可以同时运行
@@ -56,39 +102,51 @@ func (sc *LocalScheduler) schedulerTask(allCodes []string) {
 	taskChan := make(chan Task, canRunTaskNum*2) //用于通知执行Task
 	finalChan := make(chan int)
 
-	//code数组的下标
-	preLoadStartIndex := uint32(0)
-	preLoadEndIndex := uint32(10) //默认加载10个股票数据
+	//---------------------------------------预加载code
 
-	allCodesCount := uint32(len(allCodes))
+	//successedTaskForCode:=make(map[string]int32,defaultPreLoad)  //用于跟中code对应task的完成情况, 与默认加载code
+
+	defaultPreLoad := uint32(3)
+	preLoadStartIndex := uint32(0)
+	preLoadEndIndex := defaultPreLoad //默认加载3个股票数据
+
+	allCodesCount := uint32(len(codes))
+
+	//fmt.Printf("allCodesCount: %d \n",allCodesCount)
+
+	//一个code需要测试这么多个策略组合
+	//oneCodeNeedTest := uint32(len(buyReg.Names) * len(sellReg.Names))
+
+	//计算得到全部的Task数目，h个code 与 m个买策略 、 n个卖策略 笛卡尔积得到 h * m * n个 Task
+	//allTaskCount := allCodesCount * oneCodeNeedTest
 
 	//防止数组越界
-	if allCodesCount < 10 {
-		preLoadEndIndex = uint32(len(allCodes))
+	if allCodesCount < defaultPreLoad {
+		preLoadEndIndex = allCodesCount
 	}
 
 	//请求缓存模块进行预加载
-	_ = sc.cacheMap.Ready(allCodes[preLoadStartIndex:preLoadEndIndex])
+	_ = sc.cacheMap.Ready(codes[preLoadStartIndex:preLoadEndIndex])
+
+	tmpList := make([]string, preLoadEndIndex, preLoadEndIndex)
+	for index, c := range codes[preLoadStartIndex:preLoadEndIndex] {
+		//fmt.Printf("index: %d \n",index)
+		tmpList[index] = c
+	}
+	cacheCodes := CodeCacheList{tmpList}
 
 	//等待分配Task执行
 	for index := 0; index < int(canRunTaskNum); index++ {
 		go func(workerId string) {
-
-			stmt, err := DB.Prepare("insert into RewardRecord(code,SellStrategy,BuyStrategy,TotalReturnRate,ReturnRatePerYear," +
-				"WinningProb,ProfitExpect,LossExpect,AlphaEarnings,BetaEarnings) values (?,?,?,?,?,?,?,?,?,?);")
-
-			if err != nil {
-				//TODO 待优化代码，需要增加逻辑：如果异常发生了，反馈给Scheduler终止任务调度
-				schedulerLogger.Errorf(" Worker %s exist. because the DB.Prepare caused error: %s \n", workerId, err.Error())
-				close(taskChan)
-				return
-			}
 
 			for {
 				task, ok := <-taskChan
 
 				if ok != true {
 					schedulerLogger.Errorf(" Worker %s exist. because the chan is closed. \n", workerId)
+					break
+				} else if task.id == -999 { //-999表示所有的Task都已经分发完了
+					schedulerLogger.Infof(" Worker %s exist. because the tasks were done. \n", workerId)
 					break
 				}
 
@@ -107,7 +165,7 @@ func (sc *LocalScheduler) schedulerTask(allCodes []string) {
 				if err != nil {
 					schedulerLogger.Errorf("%s cacheMap get data by code %s got error: %s \n", workerId, task.code, err.Error())
 				} else {
-					schedulerLogger.Infof("%s start task (%s,%s,%s)", workerId, task.code, task.buyStragety, task.sellStragety)
+					schedulerLogger.Debugf("%s start task (%s,%s,%s)", workerId, task.code, task.buyStragety, task.sellStragety)
 					ana := Analyzer{BuyPolicies: []Strategy{buy},
 						SellPolicies: []Strategy{sell}}
 					agent := MoneyAgent{initMoney: 10000, Analyzer: ana}
@@ -120,21 +178,27 @@ func (sc *LocalScheduler) schedulerTask(allCodes []string) {
 					estimator, err := CreateEstimator(&result)
 					if err != nil {
 						schedulerLogger.Errorf("CreateEstimator caused Error: %s", err.Error())
-						schedulerLogger.Infof("%s aborted task (%s,%s,%s)", workerId, task.code, task.buyStragety, task.sellStragety)
+						schedulerLogger.Debugf("%s aborted task (%s,%s,%s)", workerId, task.code, task.buyStragety, task.sellStragety)
 						continue
 					}
 
-					/*record := RewardRecord{Code: task.code, SellStrategy: task.sellStragety, BuyStrategy: task.buyStragety,
-					TotalReturnRate: estimator.TotalReturnRate, ReturnRatePerYear: estimator.ReturnRatePerYear,
-					WinningProb: estimator.WinningProb, ProfitExpect: estimator.ProfitExpect, LossExpect: estimator.LossExpect,
-					AlphaEarnings: estimator.AlphaEarnings, BetaEarnings: estimator.BetaEarnings}
-					*/
-					//将结果插入数据库
-					_, err = stmt.Exec(task.code, task.sellStragety, task.buyStragety, estimator.TotalReturnRate,
-						estimator.ReturnRatePerYear, estimator.WinningProb, estimator.ProfitExpect, estimator.LossExpect,
-						estimator.AlphaEarnings, estimator.BetaEarnings)
+					record := RewardRecord{Code: task.code, SellStrategy: task.sellStragety, BuyStrategy: task.buyStragety,
+						TotalReturnRate: estimator.TotalReturnRate, ReturnRatePerYear: estimator.ReturnRatePerYear,
+						WinningProb: estimator.WinningProb, ProfitExpect: estimator.ProfitExpect, LossExpect: estimator.LossExpect,
+						AlphaEarnings: estimator.AlphaEarnings, BetaEarnings: estimator.BetaEarnings}
 
-					schedulerLogger.Infof("%s Finish task (%s,%s,%s)", workerId, task.code, task.buyStragety, task.sellStragety)
+					//将结果插入数据库
+					/*_, err = stmt.Exec(task.code, task.sellStragety, task.buyStragety, estimator.TotalReturnRate,
+						estimator.ReturnRatePerYear, estimator.WinningProb, estimator.ProfitExpect, estimator.LossExpect,
+					estimator.AlphaEarnings, estimator.BetaEarnings)*/
+
+					_, err = SaveRewardRecord(&record)
+
+					if err != nil {
+						schedulerLogger.Errorf("save RewardRecord caused error: %s", err.Error())
+					}
+
+					schedulerLogger.Debugf("%s Finish task (%s,%s,%s)", workerId, task.code, task.buyStragety, task.sellStragety)
 				}
 			}
 
@@ -143,31 +207,58 @@ func (sc *LocalScheduler) schedulerTask(allCodes []string) {
 		}(fmt.Sprintf("worker_%d", index))
 	}
 
-	var alreadyDone uint32 = 0 //已经调度的任务数
-	for _, task := range tasks {
-		taskChan <- task
-		//schedulerLogger.Infof("assign task ")
-		alreadyDone += 1 //已经调度的任务数 +1
+	for {
 
-		// 判断是否需要进行预加载数据
-		if alreadyDone+canRunTaskNum >= preLoadEndIndex*oneCodeNeedTest && preLoadEndIndex < allCodesCount {
-			preLoadStartIndex = preLoadEndIndex
-			if preLoadEndIndex+10 > allCodesCount {
-				preLoadEndIndex = allCodesCount
-			} else {
-				preLoadEndIndex += 10
-			}
-			_ = sc.cacheMap.Ready(allCodes[preLoadStartIndex:preLoadEndIndex])
+		val, err := client.LPop(taskQueueName).Result()
+
+		if err == redis.Nil {
+			schedulerLogger.Info("all task already done!")
+			break
+		} else if err != nil {
+			panic(errors.New("redis client can't work right."))
 		}
 
+		splits := strings.Split(val, ",")
+
+		t := Task{
+			code:         splits[0],
+			buyStragety:  splits[1],
+			sellStragety: splits[2],
+		}
+
+		//判断是否需要进行预加载
+		needLoadFlag := cacheCodes.getNeedLoadFlag(splits[0])
+
+		//如果preLoadEndIndex + 1 > = allCodesCount表示已经跑到最后一个code了，不需要再进行预加载了
+		if needLoadFlag && preLoadEndIndex+1 < allCodesCount {
+			preLoadStartIndex = preLoadEndIndex
+			preLoadEndIndex += 1
+			//更新正在缓存的code列表
+			preCode := codes[preLoadEndIndex-1]
+			delCode := cacheCodes.insert(preCode)
+
+			schedulerLogger.Infof("gonna to pre load code %s,and del the code %s", preCode, delCode)
+
+			//异步加载以及删除code
+			go func(begin uint32, end uint32, delCode string) {
+				_ = sc.cacheMap.Ready(codes[preLoadStartIndex:preLoadEndIndex])
+				sc.cacheMap.Delete(delCode)
+			}(preLoadStartIndex, preLoadEndIndex, delCode)
+		}
+		taskChan <- t
+
 	}
-	close(taskChan)
+
+	//通知各个goroutine已经完成任务了
+	for x := uint32(0); x < canRunTaskNum; x++ {
+		taskChan <- Task{id: -999}
+	}
 
 	//等待Task执行完毕
 	for x := uint32(0); x < canRunTaskNum; x++ {
 		_ = <-finalChan
 	}
-
+	close(taskChan)
 }
 
 //资源管理接口,负责节点的管理（节点注册、通信等等）
@@ -237,9 +328,4 @@ type Task struct {
 	code         string
 	buyStragety  string
 	sellStragety string
-}
-
-//TODO task方法完善
-func (task *Task) runTask() {
-
 }
