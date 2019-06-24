@@ -3,6 +3,7 @@ package backTrace
 import (
 	"errors"
 	"fmt"
+
 	"github.com/go-redis/redis"
 	"github.com/sirupsen/logrus"
 )
@@ -29,12 +30,12 @@ func RunBacktrace() {
 	nodeIp := gConf.String("node::host")
 	tmpPort, err := gConf.Int64("node::port")
 	if err != nil {
-		panic(err)
+		contextLogger.Errorf("config is Error: %v, can't not find node::port of int type", err)
 	}
 
 	tmpCore, err := gConf.Int64("node::core")
 	if err != nil {
-		panic(err)
+		contextLogger.Errorf("config is Error: %v, can't not find node::core of int type", err)
 	}
 	node := NewNode(nodeName, nodeIp, int32(tmpPort), int8(tmpCore))
 	var stocks StockMap
