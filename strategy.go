@@ -106,7 +106,7 @@ func (strag *BreakOutStrategyBuy) Do(s *StockColumnData) ([]bool, error) {
 	for i, c := range s.Close {
 		if i >= strag.WindowsNum {
 			ma[i] = Mean(s.Close[i-strag.WindowsNum : i])
-			if c > ma[i] {
+			if c > ma[i] && s.Close[i-1] < ma[i] {
 				result[i] = true
 			}
 		}
@@ -137,7 +137,7 @@ func (strag *BreakOutStrategySell) Do(s *StockColumnData) ([]bool, error) {
 	for i, c := range s.Close {
 		if i >= strag.WindowsNum {
 			ma[i] = Mean(s.Close[i-strag.WindowsNum : i])
-			if c < ma[i] {
+			if c < ma[i] && s.Close[i-1] > ma[i] {
 				result[i] = true
 			}
 		}
@@ -149,6 +149,7 @@ type KDJtStrategyBuy struct {
 	WindowsNum int
 	KWindows   int
 	DWindows   int
+	BuyRule    int //二进制01表示第一种卖出方式,10表示第二种，11表示第三种
 }
 
 // 策略初加工所有股票数据
@@ -156,7 +157,7 @@ func (strag *KDJtStrategyBuy) Process(slist []*Stock) []*Stock {
 	return slist
 }
 
-// 根据特征字段判断是否卖出
+// 根据特征字段判断是否买入
 func (strag *KDJtStrategyBuy) Do(s *StockColumnData) ([]bool, error) {
 	length := s.Length
 	if length < (strag.WindowsNum + strag.KWindows + strag.DWindows) {
@@ -181,7 +182,58 @@ func (strag *KDJtStrategyBuy) Do(s *StockColumnData) ([]bool, error) {
 			kArrage[i] = Mean(rsv[i-strag.KWindows : i])
 			dArrage[i] = Mean(kArrage[i-strag.DWindows : i])
 			jArrage[i] = 3*kArrage[i] - 2*dArrage[i]
-			if jArrage[i] > kArrage[i] && kArrage[i] > dArrage[i] {
+			if (jArrage[i-1] < 0 && kArrage[i] > 0) && (strag.BuyRule&1 != 0) {
+				result[i] = true
+			}
+			if kArrage[i] < 20 && (kArrage[i-1] < dArrage[i-1]) && (kArrage[i] > dArrage[i]) && (strag.BuyRule&2 != 0) {
+				result[i] = true
+			}
+		}
+	}
+	return result, nil
+}
+
+type KDJtStrategySell struct {
+	WindowsNum int
+	KWindows   int
+	DWindows   int
+	SellRule   int //二进制01表示第一种卖出方式,10表示第二种，11表示第三种
+}
+
+// 策略初加工所有股票数据
+func (strag *KDJtStrategySell) Process(slist []*Stock) []*Stock {
+	return slist
+}
+
+// 根据特征字段判断是否买入
+func (strag *KDJtStrategySell) Do(s *StockColumnData) ([]bool, error) {
+	length := s.Length
+	if length < (strag.WindowsNum + strag.KWindows + strag.DWindows) {
+		err := errors.New("stock data is too short and cann't use this strategy!")
+		return nil, err
+	}
+	var result = make([]bool, length)
+	var rsv = make([]float32, length)
+	for i := range s.Close {
+		if i >= strag.WindowsNum {
+			hhv := Max(s.High[i-strag.WindowsNum : i])
+			llv := Min(s.Low[i-strag.WindowsNum : i])
+			rsv[i] = (s.Close[i] - llv) / (hhv - llv)
+		}
+		rsv[i] = 0
+	}
+	var kArrage = make([]float32, len(rsv))
+	var jArrage = make([]float32, len(rsv))
+	var dArrage = make([]float32, len(rsv))
+	for i := range rsv {
+		if i >= (strag.WindowsNum + strag.KWindows) {
+			kArrage[i] = Mean(rsv[i-strag.KWindows : i])
+			dArrage[i] = Mean(kArrage[i-strag.DWindows : i])
+			jArrage[i] = 3*kArrage[i] - 2*dArrage[i]
+			if jArrage[i-1] < 100 && kArrage[i] > 100 && (strag.SellRule&1 != 0) {
+				result[i] = true
+			}
+			if kArrage[i] > 80 && (kArrage[i-1] > dArrage[i-1]) && (kArrage[i] < dArrage[i]) && (strag.SellRule&2 != 0) {
 				result[i] = true
 			}
 		}

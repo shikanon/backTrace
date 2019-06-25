@@ -85,7 +85,7 @@ func RunBacktrace() {
 	//获取所有股票
 	allCodes := GetAllSockCode()
 
-	allCodes = allCodes[:1]
+	allCodes = allCodes
 
 	//一个code需要测试这么多个策略组合
 	oneCodeNeedTest := uint32(len(buyReg.Names) * len(sellReg.Names))

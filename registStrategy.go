@@ -38,6 +38,8 @@ func (r *StrategyRegister) Load(name string) (strategy Strategy, err error) {
 		strategy = &strag
 	case KDJtStrategyBuy:
 		strategy = &strag
+	case KDJtStrategySell:
+		strategy = &strag
 	}
 	if strategy == nil {
 		return nil, errors.New("Error type in StrategyRegister! is not strategy, so can't find it!")

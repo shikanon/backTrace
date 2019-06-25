@@ -3,6 +3,8 @@ package backTrace
 import (
 	"errors"
 	"fmt"
+
+	"github.com/sirupsen/logrus"
 )
 
 //评估器
@@ -50,4 +52,20 @@ func CreateEstimator(data *ProfileData) (*Estimator, error) {
 		WinningProb:       winningProb,
 		ProfitExpect:      prefitExpect,
 		LossExpect:        lossExpect}, nil
+}
+
+func FindBestEstimator(orderField string) error {
+	rewardLogger := logrus.WithFields(logrus.Fields{
+		"function": "FindBestEstimator()",
+	})
+	findSQL := fmt.Sprintf(`
+	select SellStrategy,BuyStrategy,AVG(ReturnRatePerYear),AVG(WinningProb),AVG(ProfitExpect),AVG(LossExpect) from reward_record 
+	group by SellStrategy,BuyStrategy order by AVG(%s) desc limit 30
+	`, orderField)
+	result, err := DB.Exec(findSQL)
+	if err != nil {
+		return err
+	}
+	rewardLogger.Info(result)
+	return nil
 }

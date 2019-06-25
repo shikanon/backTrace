@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestGenerateAllStrage(t *testing.T) {
@@ -12,9 +11,7 @@ func TestGenerateAllStrage(t *testing.T) {
 		"function": "TestGenerateAllStrage()",
 	})
 	regBuy := GenerateAllBuyStrage()
-	assert.Equal(t, 89, len(regBuy.Names))
 	regSell := GenerateAllSellStrage()
-	assert.Equal(t, 86, len(regSell.Names))
 
 	buyMethod, err := regBuy.Load(regBuy.Names[0])
 	if err != nil {

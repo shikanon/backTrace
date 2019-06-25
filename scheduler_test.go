@@ -1,8 +1,9 @@
 package backTrace
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSchedulerTask(t *testing.T) {
@@ -10,7 +11,8 @@ func TestSchedulerTask(t *testing.T) {
 	node := NewNode("localhost", "127.0.0.1", 5555, 1)
 	var stocks StockMap
 	sc := LocalScheduler{node: node, coresForPerTask: 1, cacheMap: stocks}
-	allStocks := GetAllSockCode()
+	// allStocks := GetAllSockCode()
+	testStock := []string{"002985"}
 
 	c, _ := CreateRedisClient()
 	_, err = c.Del(GenBeginFlag, GenEndFlag, taskQueueName).Result()
@@ -21,9 +23,9 @@ func TestSchedulerTask(t *testing.T) {
 	//获取卖策略
 	sellReg := GenerateAllSellStrage()
 
-	TasksGenerate(&buyReg, &sellReg, allStocks[:1], c)
+	TasksGenerate(&buyReg, &sellReg, testStock, c)
 
-	sc.schedulerTask(&buyReg, &sellReg, allStocks[:1], c)
+	sc.schedulerTask(&buyReg, &sellReg, testStock, c)
 }
 
 func TestCodeCacheList(t *testing.T) {

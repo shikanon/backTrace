@@ -14,7 +14,7 @@ func TestGetAllSockCode(t *testing.T) {
 	testLogger := logrus.WithFields(logrus.Fields{
 		"function": "TestGetAllSockCode()",
 	})
-	code := "000001"
+	code := "002958"
 	stock, err := GetSockData(code)
 	if err != nil {
 		panic(err)

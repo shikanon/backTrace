@@ -166,6 +166,7 @@ func GetSockData(code string) (StockColumnData, error) {
 		"function": "GetStock()",
 		"code":     code,
 	})
+	contextLogger.Infof("Begin to load stock code: %s", code)
 	columnData, err := LoadLocalData(code)
 	contextLogger.Debug(" the stock number is ", columnData.Length)
 	if os.IsNotExist(err) {
