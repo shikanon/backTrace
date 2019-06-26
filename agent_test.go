@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMoneyAgent_GetProfileData(t *testing.T) {
@@ -30,7 +31,9 @@ func TestMoneyAgent_GetProfileData(t *testing.T) {
 		agent.Init()
 
 		//经理根据指定的策略对单只股票进行操作
-		agent.WorkForSingle(stockData)
+		err = agent.WorkForSingle(stockData)
+
+		assert.Equal(t, nil, err)
 
 		result := agent.GetProfileData()
 		estimator, err := CreateEstimator(&result)

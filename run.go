@@ -94,7 +94,7 @@ func RunBacktrace() {
 	allTaskCount := uint32(len(allCodes)) * oneCodeNeedTest
 
 	if needReGenerateFlag {
-		genCount := TasksGenerate(&buyReg, &sellReg, allCodes, client)
+		genCount := TasksGenerate(&buyReg, &sellReg, allCodes, client, false)
 
 		//正常生成的Task与计算得到的结果应该是一致的
 		if allTaskCount != genCount {

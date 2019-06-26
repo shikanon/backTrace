@@ -46,7 +46,7 @@ func (list *CodeCacheList) insert(code string) string {
 	return delCode
 }
 
-func TasksGenerate(buyReg *StrategyRegister, sellReg *StrategyRegister, codes []string, client *redis.Client) uint32 {
+func TasksGenerate(buyReg *StrategyRegister, sellReg *StrategyRegister, codes []string, client *redis.Client, testFlag bool) uint32 {
 	//var tasks []Task
 	_, err = client.Set(GenBeginFlag, "true", 0).Result()
 	if err != nil {
@@ -65,6 +65,11 @@ func TasksGenerate(buyReg *StrategyRegister, sellReg *StrategyRegister, codes []
 				taskStr := code + "," + buyName + "," + sellName + "," + strconv.FormatInt(int64(count), 10)
 				client.RPush(taskQueueName, taskStr)
 				count += 1
+
+				//TODO 临时加个测试标识
+				if testFlag {
+					return count
+				}
 			}
 		}
 	}
@@ -171,14 +176,20 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 					agent := MoneyAgent{initMoney: 10000, Analyzer: ana}
 					//经理需要做好准备后才能开始工作
 					agent.Init()
-					agent.WorkForSingle(*stock)
+					err = agent.WorkForSingle(*stock)
+
+					if err != nil {
+						schedulerLogger.Errorf("%s agent.WorkForSingle cased error by code %s, error: %s \n", workerId, task.code, err.Error())
+						schedulerLogger.Errorf("%s aborted task (%s,%s,%s)", workerId, task.code, task.buyStragety, task.sellStragety)
+						continue
+					}
 
 					//评估策略效果
 					result := agent.GetProfileData()
 					estimator, err := CreateEstimator(&result)
 					if err != nil {
 						schedulerLogger.Errorf("CreateEstimator caused Error: %s", err.Error())
-						schedulerLogger.Debugf("%s aborted task (%s,%s,%s)", workerId, task.code, task.buyStragety, task.sellStragety)
+						schedulerLogger.Errorf("%s aborted task (%s,%s,%s)", workerId, task.code, task.buyStragety, task.sellStragety)
 						continue
 					}
 

@@ -23,7 +23,7 @@ func TestSchedulerTask(t *testing.T) {
 	//获取卖策略
 	sellReg := GenerateAllSellStrage()
 
-	TasksGenerate(&buyReg, &sellReg, testStock, c)
+	TasksGenerate(&buyReg, &sellReg, testStock, c, true)
 
 	sc.schedulerTask(&buyReg, &sellReg, testStock, c)
 }
