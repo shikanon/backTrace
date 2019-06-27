@@ -1,7 +1,8 @@
 package backTrace
 
 func GenerateAllBuyStrage() (reg StrategyRegister) {
-	for i := 5; i <= 70; i++ {
+	var breakoutParam = []int{5, 6, 9, 10, 11, 12, 14, 19, 20, 21, 29, 30, 31, 39, 40, 41, 42, 49, 50, 51, 59, 60, 61, 62}
+	for i := range breakoutParam {
 		buy := BreakOutStrategyBuy{WindowsNum: i}
 		reg.Regist(buy)
 	}
@@ -20,7 +21,8 @@ func GenerateAllBuyStrage() (reg StrategyRegister) {
 }
 
 func GenerateAllSellStrage() (reg StrategyRegister) {
-	for i := 5; i <= 70; i++ {
+	var breakoutParam = []int{5, 6, 9, 10, 11, 12, 14, 19, 20, 21, 29, 30, 31, 39, 40, 41, 42, 49, 50, 51, 59, 60, 61, 62}
+	for i := range breakoutParam {
 		sell := BreakOutStrategySell{WindowsNum: i}
 		reg.Regist(sell)
 	}
