@@ -30,15 +30,9 @@ func RunBacktrace() {
 	nodeName := gConf.String("node::hostname")
 	nodeIp := gConf.String("node::host")
 	// 设置core默认设置19999
-	tmpPort, err := gConf.DefaultInt("node::port", 19999)
-	if err != nil {
-		contextLogger.Errorf("config is Error: %v, can't not find node::port of int type", err)
-	}
+	tmpPort := gConf.DefaultInt("node::port", 19999)
 	// 设置core默认设置为CPU核心数
-	tmpCore, err := gConf.DefaultInt("node::core", runtime.NumCPU())
-	if err != nil {
-		contextLogger.Errorf("config is Error: %v, node::core of int type is error type", err)
-	}
+	tmpCore := gConf.DefaultInt("node::core", runtime.NumCPU())
 	node := NewNode(nodeName, nodeIp, int32(tmpPort), int8(tmpCore))
 	var stocks StockMap
 	sc := LocalScheduler{node: node, coresForPerTask: 1, cacheMap: stocks}
