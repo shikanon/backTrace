@@ -80,13 +80,13 @@ func (agent *MoneyAgent) Init() {
 }
 
 //资金经理开始干活了,他需要对这个股票的所有数据进行分析
-func (agent *MoneyAgent) WorkForSingle(stockdata StockColumnData) {
+func (agent *MoneyAgent) WorkForSingle(stockdata StockColumnData) error {
 	var stocks Stock
 	//分析数据，获得买入卖出操作指令
 	points, err := agent.Analyzer.Analyse(stockdata)
 	if err != nil {
 		fmt.Printf("出现异常，退出程序：%s", err)
-		return
+		return err
 	}
 
 	//TODO 取出昨天的股票数据
@@ -130,7 +130,7 @@ func (agent *MoneyAgent) WorkForSingle(stockdata StockColumnData) {
 			//fmt.Printf("hold %s\n", dayData.Code)
 		}
 	}
-
+	return nil
 }
 
 //买入
