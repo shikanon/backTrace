@@ -3,6 +3,7 @@ package backTrace
 import (
 	"errors"
 	"fmt"
+	"runtime"
 
 	"github.com/go-redis/redis"
 	"github.com/sirupsen/logrus"
@@ -28,14 +29,15 @@ func RunBacktrace() {
 	//构建任务调度器
 	nodeName := gConf.String("node::hostname")
 	nodeIp := gConf.String("node::host")
-	tmpPort, err := gConf.Int64("node::port")
+	// 设置core默认设置19999
+	tmpPort, err := gConf.DefaultInt("node::port", 19999)
 	if err != nil {
 		contextLogger.Errorf("config is Error: %v, can't not find node::port of int type", err)
 	}
-
-	tmpCore, err := gConf.Int64("node::core")
+	// 设置core默认设置为CPU核心数
+	tmpCore, err := gConf.DefaultInt("node::core", runtime.NumCPU())
 	if err != nil {
-		contextLogger.Errorf("config is Error: %v, can't not find node::core of int type", err)
+		contextLogger.Errorf("config is Error: %v, node::core of int type is error type", err)
 	}
 	node := NewNode(nodeName, nodeIp, int32(tmpPort), int8(tmpCore))
 	var stocks StockMap
