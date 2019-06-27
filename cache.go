@@ -2,6 +2,7 @@ package backTrace
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"sync"
 )
@@ -21,18 +22,22 @@ func (s *StockMap) Load(code string) (*StockColumnData, error) {
 	var err error
 	value, ok := s.stock.Load(code)
 	if !ok {
-		*stock, err = GetSockData(code)
+		stock, err := GetSockData(code)
 		if err != nil {
-			return nil, err
+			return nil, errors.New(fmt.Sprintf("get stock %s error!%v", code, err))
 		}
-		s.stock.Store(code, stock)
-	}
-	stock, ok = value.(*StockColumnData)
-	if !ok {
-		return nil, errors.New("StockMap store type is error and can't load!" + reflect.TypeOf(value).Name())
+		if &stock == nil {
+			return nil, errors.New("stock is nil!")
+		}
+		s.stock.Store(code, &stock)
+	} else {
+		stock, ok = value.(*StockColumnData)
+		if !ok {
+			return nil, errors.New("StockMap store type is error and can't load!" + reflect.TypeOf(value).Name())
+		}
 	}
 
-	return stock, nil
+	return stock, err
 }
 
 func (s *StockMap) Ready(codes []string) error {

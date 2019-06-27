@@ -3,6 +3,7 @@ package backTrace
 import (
 	"database/sql"
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -176,21 +177,21 @@ func GetSockData(code string) (StockColumnData, error) {
 		err = DB.Select(&rowData, sqlstm)
 		if err != nil {
 			contextLogger.Warn(err)
-			return columnData, nil
+			return columnData, err
 		}
 		columnData = *ConvColumnData(rowData)
 		err = SaveLocalData(code, columnData)
 		if err != nil {
 			contextLogger.Warn(err)
-			return columnData, nil
+			return columnData, err
 		}
-		return columnData, nil
-	}
-	if err != nil {
-		contextLogger.Fatal(err)
 		return columnData, err
 	}
-	return columnData, nil
+	if err != nil {
+		contextLogger.Warn(err)
+		return columnData, err
+	}
+	return columnData, err
 }
 
 // get stock data for row stock
@@ -249,7 +250,7 @@ func LoadLocalData(code string) (StockColumnData, error) {
 	file, err := os.Open(filename)
 	defer file.Close()
 	if err != nil {
-		return stock, err
+		return stock, errors.New(fmt.Sprintf("open file is error, %v", err))
 	}
 	decoder := gob.NewDecoder(file)
 	err = decoder.Decode(&stock)

@@ -26,3 +26,17 @@ func BenchmarkStockMapr(b *testing.B) {
 		}
 	}
 }
+
+func TestLoadAndSave(t *testing.T) {
+	testLogger := logrus.WithFields(logrus.Fields{
+		"function": "TestLoadAndSave()",
+	})
+	var stocks StockMap
+	stock, err := stocks.Load("000001")
+	if stock != nil {
+		testLogger.Fatal("错误,应返回空类型")
+	}
+	if err != nil {
+		testLogger.Infof("这仅仅是一条错误测试信息：%v", err)
+	}
+}
