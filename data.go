@@ -3,7 +3,6 @@ package backTrace
 import (
 	"database/sql"
 	"encoding/gob"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -188,7 +187,7 @@ func GetSockData(code string) (StockColumnData, error) {
 		return columnData, err
 	}
 	if err != nil {
-		contextLogger.Warn(err)
+		contextLogger.Warnf("other error: %v", err)
 		return columnData, err
 	}
 	return columnData, err
@@ -250,7 +249,7 @@ func LoadLocalData(code string) (StockColumnData, error) {
 	file, err := os.Open(filename)
 	defer file.Close()
 	if err != nil {
-		return stock, errors.New(fmt.Sprintf("open file is error, %v", err))
+		return stock, err
 	}
 	decoder := gob.NewDecoder(file)
 	err = decoder.Decode(&stock)
