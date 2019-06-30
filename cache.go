@@ -31,6 +31,15 @@ func (s *StockMap) Load(code string) (*StockColumnData, error) {
 	}
 	// not ok:
 	s.lock.Lock()
+	defer s.lock.Unlock()
+	value, ok = s.stock.Load(code)
+	if ok {
+		stockpoint, ok = value.(*StockColumnData)
+		if !ok {
+			return nil, errors.New("StockMap store type is error and can't load!" + reflect.TypeOf(value).Name())
+		}
+		return stockpoint, err
+	}
 	stock, err := GetSockData(code)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("get stock %s error!%v", code, err))
@@ -40,7 +49,6 @@ func (s *StockMap) Load(code string) (*StockColumnData, error) {
 	}
 	stockpoint = &stock
 	s.stock.Store(code, stockpoint)
-	s.lock.Unlock()
 
 	return stockpoint, err
 }
