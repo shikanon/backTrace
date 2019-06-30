@@ -14,30 +14,35 @@ type CacheStock interface {
 }
 
 type StockMap struct {
+	lock  sync.RWMutex
 	stock sync.Map
 }
 
 func (s *StockMap) Load(code string) (*StockColumnData, error) {
-	var stock *StockColumnData
+	var stockpoint *StockColumnData
 	var err error
 	value, ok := s.stock.Load(code)
-	if !ok {
-		stock, err := GetSockData(code)
-		if err != nil {
-			return nil, errors.New(fmt.Sprintf("get stock %s error!%v", code, err))
-		}
-		if &stock == nil {
-			return nil, errors.New("stock is nil!")
-		}
-		s.stock.Store(code, &stock)
-	} else {
-		stock, ok = value.(*StockColumnData)
+	if ok {
+		stockpoint, ok = value.(*StockColumnData)
 		if !ok {
 			return nil, errors.New("StockMap store type is error and can't load!" + reflect.TypeOf(value).Name())
 		}
+		return stockpoint, err
 	}
+	// not ok:
+	s.lock.Lock()
+	stock, err := GetSockData(code)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("get stock %s error!%v", code, err))
+	}
+	if &stock == nil {
+		return nil, errors.New("stock is nil!")
+	}
+	stockpoint = &stock
+	s.stock.Store(code, stockpoint)
+	s.lock.Unlock()
 
-	return stock, err
+	return stockpoint, err
 }
 
 func (s *StockMap) Ready(codes []string) error {
