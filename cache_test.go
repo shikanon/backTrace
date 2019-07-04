@@ -32,7 +32,8 @@ func TestLoadAndSave(t *testing.T) {
 		"function": "TestLoadAndSave()",
 	})
 	var stocks StockMap
-	stock, err := stocks.Load("000001")
+	stock, err := stocks.Load("1000001")
+	testLogger.Info(stock)
 	if stock != nil {
 		testLogger.Fatal("错误,应返回空类型")
 	}

@@ -179,6 +179,9 @@ func GetSockData(code string) (StockColumnData, error) {
 			return columnData, err
 		}
 		columnData = *ConvColumnData(rowData)
+		if len(columnData.Date) == 0 {
+			return columnData, err
+		}
 		err = SaveLocalData(code, columnData)
 		if err != nil {
 			contextLogger.Warn(err)

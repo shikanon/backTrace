@@ -44,7 +44,7 @@ func (s *StockMap) Load(code string) (*StockColumnData, error) {
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("get stock %s error!%v", code, err))
 	}
-	if &stock == nil {
+	if len(stock.Date) == 0 {
 		return nil, errors.New("stock is nil!")
 	}
 	stockpoint = &stock
