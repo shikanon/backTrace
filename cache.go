@@ -77,3 +77,9 @@ func (s *StockMap) Ready(codes []string) error {
 func (s *StockMap) Delete(code string) {
 	s.stock.Delete(code)
 }
+
+func (s *StockMap) Flushall(codes []string) {
+	for _, c := range codes {
+		go s.stock.Delete(c)
+	}
+}

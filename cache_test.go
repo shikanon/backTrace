@@ -40,4 +40,11 @@ func TestLoadAndSave(t *testing.T) {
 	if err != nil {
 		testLogger.Infof("这仅仅是一条错误测试信息：%v", err)
 	}
+	codes := []string{"000001", "002024", "000725", "601330"}
+	stocks.Ready(codes)
+	_, ok := stocks.stock.Load("002024")
+	if !ok {
+		testLogger.Fatal("StockMap.Ready method is error, can't Load value")
+	}
+	stocks.Flushall(codes)
 }
