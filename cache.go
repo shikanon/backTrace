@@ -44,7 +44,7 @@ func (s *StockMap) Load(code string) (*StockColumnData, error) {
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("get stock %s error!%v", code, err))
 	}
-	if &stock == nil {
+	if len(stock.Date) == 0 {
 		return nil, errors.New("stock is nil!")
 	}
 	stockpoint = &stock
@@ -76,4 +76,10 @@ func (s *StockMap) Ready(codes []string) error {
 
 func (s *StockMap) Delete(code string) {
 	s.stock.Delete(code)
+}
+
+func (s *StockMap) Flushall(codes []string) {
+	for _, c := range codes {
+		go s.stock.Delete(c)
+	}
 }
