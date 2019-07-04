@@ -59,18 +59,18 @@ func RunBacktrace() {
 	//计算得到全部的Task数目，h个code 与 m个买策略 、 n个卖策略 笛卡尔积得到 h * m * n个 Task
 	allTaskCount := uint32(len(allCodes)) * oneCodeNeedTest
 
-	contextLogger.Infof("Generate tasks total : %d .", allTaskCount)
+	contextLogger.Infof("tasks total : %d .", allTaskCount)
 
-	//获取上次已经完成的Task但是还没有checkpoint的Task
-
+	//断点恢复
 	tm := TasksManager{
 		redoLogFile: "checkpoint.txt",
 	}
+	tm.recover()
 
 	//分批生成Task并调度
 	contextLogger.Info("start to scheduler tasks")
 
-	sc.schedulerTask(&buyReg, &sellReg, allCodes, tm)
+	sc.schedulerTask(&buyReg, &sellReg, allCodes[:1], tm)
 
 	contextLogger.Info("scheduler finished!")
 

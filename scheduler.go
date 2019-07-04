@@ -221,6 +221,7 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 	}(&tm)
 
 	allCodesCount := int32(len(codes))
+	schedulerLogger.Infof("code's len is %d", allCodesCount)
 	//预加载1
 	preLoadStratIndex := tm.lastCodeIndex
 	preLoadEndIndex := tm.lastCodeIndex + 5
@@ -261,6 +262,7 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 				isFinished := tm.AddTask(t) //记录task,并检查是否已经完成了的
 				if isFinished == false {
 					taskChan <- t
+					schedulerLogger.Debug(t.String(","))
 				}
 
 				newIndex := atomic.LoadInt32(&tm.lastCodeIndex)
@@ -473,12 +475,12 @@ func (tm *TasksManager) AddTask(t Task) bool {
 	status, ok := tm.runningTasks[key]
 	if ok {
 		if status == TaskStatuSucessed {
-			return false
+			return true
 		}
 	}
 	tm.runningTasks[key] = TaskStatuRunning
 	tm.waitForCheckPoint.Insert(&IndexNode{T: &t, Key: key})
-	return true
+	return false
 }
 
 func (tm *TasksManager) UpdateStatu(s *TaskStatus) {
