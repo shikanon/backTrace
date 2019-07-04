@@ -91,7 +91,7 @@ func (agent *MoneyAgent) WorkForSingle(stockdata StockColumnData) error {
 
 	//TODO 取出昨天的股票数据
 	/*for index,value:= range points{
-		fmt.Printf("date: %s,code :%s, 策略返回结果是： %s\n",stocks[index].Date,stocks[index].Code,value)
+		fmt.Printf("date: %s,Code :%s, 策略返回结果是： %s\n",stocks[index].Date,stocks[index].Code,value)
 	}*/
 
 	lastDay := stockdata.Length - 1

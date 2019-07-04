@@ -164,14 +164,14 @@ func GetSockData(code string) (StockColumnData, error) {
 	var rowData Stock
 	contextLogger := logrus.WithFields(logrus.Fields{
 		"function": "GetStock()",
-		"code":     code,
+		"Code":     code,
 	})
-	contextLogger.Infof("Begin to load stock code: %s", code)
+	contextLogger.Infof("Begin to load stock Code: %s", code)
 	columnData, err := LoadLocalData(code)
 	contextLogger.Debug(" the stock number is ", columnData.Length)
 	if os.IsNotExist(err) {
 		contextLogger.Info("star query database!", code)
-		sqlstm := fmt.Sprintf("select * from stock_daily_data where code=%s", code)
+		sqlstm := fmt.Sprintf("select * from stock_daily_data where Code=%s", code)
 		contextLogger.Info(sqlstm)
 		err = DB.Select(&rowData, sqlstm)
 		if err != nil {
@@ -198,13 +198,13 @@ func GetRowSockData(code string) (Stock, error) {
 	var rowData Stock
 	contextLogger := logrus.WithFields(logrus.Fields{
 		"function": "GetStock()",
-		"code":     code,
+		"Code":     code,
 	})
 	columnData, err := LoadLocalData(code)
 	contextLogger.Info(" the stock number is ", columnData.Length)
 	if os.IsNotExist(err) {
 		contextLogger.Info("star query database!", code)
-		sqlstm := fmt.Sprintf("select * from stock_daily_data where code=%s", code)
+		sqlstm := fmt.Sprintf("select * from stock_daily_data where Code=%s", code)
 		contextLogger.Info(sqlstm)
 		err = DB.Select(&rowData, sqlstm)
 		if err != nil {
@@ -271,7 +271,7 @@ func GetAllSockCode() []string {
 	if os.IsNotExist(err) {
 		contextLogger.Info("star to database select data!")
 		// 查询
-		err = DB.Select(&codes, "select code from stock_daily_data group by code")
+		err = DB.Select(&codes, "select Code from stock_daily_data group by Code")
 		if err != nil {
 			logrus.Error(err)
 		}
@@ -305,7 +305,7 @@ func GetAllSockCode() []string {
 }
 
 func SaveRewardRecord(record *RewardRecord) (res sql.Result, err error) {
-	InsertSQL := `INSERT INTO reward_record (code, SellStrategy, BuyStrategy, TotalReturnRate, ReturnRatePerYear,
+	InsertSQL := `INSERT INTO reward_record (Code, SellStrategy, BuyStrategy, TotalReturnRate, ReturnRatePerYear,
 		WinningProb, ProfitExpect, LossExpect, AlphaEarnings, BetaEarnings)
 		values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	res, err = DB.Exec(InsertSQL, record.Code, record.SellStrategy, record.BuyStrategy, record.TotalReturnRate, record.ReturnRatePerYear,
@@ -318,7 +318,7 @@ func SaveBatchRewardRecord(records []*RewardRecord, minbatch int) ([]*RewardReco
 	if len(records) < minbatch {
 		return records, err
 	}
-	InsertSQL := `INSERT INTO reward_record (code, SellStrategy, BuyStrategy, TotalReturnRate, ReturnRatePerYear,
+	InsertSQL := `INSERT INTO reward_record (Code, SellStrategy, BuyStrategy, TotalReturnRate, ReturnRatePerYear,
 		WinningProb, ProfitExpect, LossExpect, AlphaEarnings, BetaEarnings)
 		values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	tx := DB.MustBegin()

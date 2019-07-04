@@ -18,7 +18,7 @@ func TestMoneyAgent_GetProfileData(t *testing.T) {
 		testLogger.Warn(err)
 	}
 	if stockData.Length > 0 {
-		testLogger.Infof("find stock code numbers is %d", stockData.Length)
+		testLogger.Infof("find stock Code numbers is %d", stockData.Length)
 		//初始化分析者
 		buy := BreakOutStrategyBuy{WindowsNum: 60}
 		sell := BreakOutStrategySell{WindowsNum: 40}

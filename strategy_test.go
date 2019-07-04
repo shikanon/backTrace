@@ -17,7 +17,7 @@ func TestAnalyzer(t *testing.T) {
 		testLogger.Fatal(err)
 	}
 	if stockData.Length > 0 {
-		testLogger.Infof("find stock code numbers is %d", stockData.Length)
+		testLogger.Infof("find stock Code numbers is %d", stockData.Length)
 		buy := BreakOutStrategyBuy{WindowsNum: 60}
 		sell := BreakOutStrategySell{WindowsNum: 40}
 		ana := Analyzer{BuyPolicies: []Strategy{&buy},

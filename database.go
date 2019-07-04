@@ -18,7 +18,7 @@ type Stock []*StockDailyData
 
 var schema = `
 CREATE TABLE IF NOT EXISTS reward_record(
-	code 	varchar(6),
+	Code 	varchar(6),
 	SellStrategy 	varchar(255),
 	BuyStrategy		varchar(255),
 	TotalReturnRate 	float,
@@ -28,13 +28,13 @@ CREATE TABLE IF NOT EXISTS reward_record(
 	LossExpect 	float,
 	AlphaEarnings 	float,
 	BetaEarnings 	float,
-	PRIMARY KEY (code,  SellStrategy, BuyStrategy)
+	PRIMARY KEY (Code,  SellStrategy, BuyStrategy)
 )ENGINE=MyISAM DEFAULT CHARSET=utf8;
 `
 
 type StockDailyData struct {
 	Date             time.Time       `db:"date"`
-	Code             string          `db:"code"`
+	Code             string          `db:"Code"`
 	Open             float32         `db:"open"`               // 开盘价/元                                                                            |
 	Close            float32         `db:"close"`              // 收盘价/元                                                                          |
 	High             float32         `db:"high"`               // 最高价/元                                                                            |
@@ -67,7 +67,7 @@ type StockDailyData struct {
 }
 
 type RewardRecord struct {
-	Code              string  `db:"code"`              //股票代码
+	Code              string  `db:"Code"`              //股票代码
 	SellStrategy      string  `db:"SellStrategy"`      //策略名称
 	BuyStrategy       string  `db:"BuyStrategy"`       //策略名称
 	TotalReturnRate   float32 `db:"TotalReturnRate"`   //收益率
