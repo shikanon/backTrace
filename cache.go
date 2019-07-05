@@ -64,6 +64,9 @@ func (s *StockMap) Ready(codes []string) error {
 				if err != nil {
 					return err
 				}
+				if len(stock.Date) == 0 {
+					return errors.New("stock is nil! code:" + code)
+				}
 				s.stock.Store(code, &stock)
 				wg.Done()
 				return nil

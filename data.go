@@ -175,16 +175,17 @@ func GetSockData(code string) (StockColumnData, error) {
 		contextLogger.Info(sqlstm)
 		err = DB.Select(&rowData, sqlstm)
 		if err != nil {
-			contextLogger.Warn(err)
+			contextLogger.Warnf("DataBase Select Error: %v", err)
 			return columnData, err
 		}
 		columnData = *ConvColumnData(rowData)
 		if len(columnData.Date) == 0 {
+			contextLogger.Warn("code is nil!")
 			return columnData, err
 		}
 		err = SaveLocalData(code, columnData)
 		if err != nil {
-			contextLogger.Warn(err)
+			contextLogger.Warnf("SaveLocalData Error: %v", err)
 			return columnData, err
 		}
 		return columnData, err
