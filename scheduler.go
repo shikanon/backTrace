@@ -3,7 +3,6 @@ package backTrace
 import (
 	"bufio"
 	"fmt"
-	"github.com/go-redis/redis"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -26,47 +25,10 @@ const (
 	RedoDelim         = ";"
 )
 
-/*
-func TasksGenerate(buyReg *StrategyRegister, sellReg *StrategyRegister, codes []string, client *redis.Client, testFlag bool) uint32 {
-	//var tasks []Task
-	_, err = client.Set(GenBeginFlag, "true", 0).Result()
-	if err != nil {
-		panic(err)
-	}
-
-	count := uint32(0)
-	//生成所有的Task
-	for _, Code := range codes {
-		//获取买入策略
-		for _, buyName := range buyReg.Names {
-			//获取卖出策略
-			for _, sellName := range sellReg.Names {
-				//构建一个Task
-				//tasks = append(tasks, Task{Code: Code, buyStragety: buyName, sellStragety: sellName})
-				taskStr := Code + "," + buyName + "," + sellName + "," + strconv.FormatInt(int64(count), 10)
-				client.RPush(taskQueueName, taskStr)
-				count += 1
-
-				//TODO 临时加个测试标识
-				if testFlag {
-					return count
-				}
-			}
-		}
-	}
-
-	_, err = client.Set(GenEndFlag, "true", 0).Result()
-	if err != nil {
-		panic(err)
-	}
-
-	return count
-}*/
-
 // 调度接口
 type Scheduler interface {
 	//入参是code数组，生成并启动Task
-	schedulerTask(buyReg *StrategyRegister, sellReg *StrategyRegister, code []string, client *redis.Client)
+	schedulerTask(buyReg *StrategyRegister, sellReg *StrategyRegister, code []string, tm *TasksManager)
 }
 
 // 单机调度器
@@ -78,7 +40,7 @@ type LocalScheduler struct {
 
 //根据股票ID进行任务调度
 func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *StrategyRegister, codes []string,
-	tm TasksManager) {
+	tm *TasksManager) {
 	schedulerLogger := logrus.WithFields(logrus.Fields{
 		"function": "schedulerTask()",
 	})
@@ -204,11 +166,6 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 		}(fmt.Sprintf("worker_%d", index))
 	}
 
-	/*	//防止数组越界
-		if allCodesCount < defaultPreLoad {
-			preLoadEndIndex = allCodesCount
-		}*/
-
 	go func(tm *TasksManager) {
 		for {
 			taskStatu, ok := <-finalChan
@@ -218,7 +175,7 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 			}
 			tm.UpdateStatu(&taskStatu)
 		}
-	}(&tm)
+	}(tm)
 
 	allCodesCount := int32(len(codes))
 	schedulerLogger.Infof("code's len is %d", allCodesCount)
@@ -248,17 +205,27 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 		panic(errors.Errorf("cacheMap reday load data caused error, %s", err.Error()))
 	}
 
-	for codeIndex, code := range codes[tm.lastCodeIndex:] {
+	lastCodeIndex := tm.lastCodeIndex
+	lastBuyIndex := tm.lastBuyIndex
+	lastSellIndex := tm.lastSellIndex
+
+	for codeIndex, code := range codes[lastCodeIndex:] {
 		//获取买入策略
-		for buyIndex, buyName := range buyReg.Names[tm.lastBuyIndex:] {
+		for buyIndex, buyName := range buyReg.Names[lastBuyIndex:] {
 			//获取卖出策略
-			for sellIndex, sellName := range sellReg.Names[tm.lastSellIndex:] {
+			for sellIndex, sellName := range sellReg.Names[lastSellIndex:] {
 				//构建一个Task
 				//tasks = append(tasks, Task{Code: Code, buyStragety: buyName, sellStragety: sellName})
 				//taskStr := Code + "," + buyName + "," + sellName
 				//id := (CodeIndex + 1) * (buyIndex + 1) * (sellIndex + 1)
+
+				if tm.stop > 0 { //tm检查到有task失败,程序中断
+					break
+				}
+
 				t := Task{CodeIndex: int32(codeIndex), Code: code, BuyIndex: int32(buyIndex), BuyStragety: buyName,
 					SellIndex: int32(sellIndex), SellStragety: sellName}
+				schedulerLogger.Infof("add task %s", fmt.Sprintf("%s,%s,%s", code, buyName, sellName))
 				isFinished := tm.AddTask(t) //记录task,并检查是否已经完成了的
 				if isFinished == false {
 					taskChan <- t
@@ -310,10 +277,6 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 		}
 	}
 	close(taskChan)
-}
-
-func (sc *LocalScheduler) preLoadData(start *int32, end *int32) {
-
 }
 
 //节点信息，表示一个节点
@@ -448,9 +411,10 @@ func (q *IndexQueue) Pop() {
 
 //用于跟踪Task的运行状况
 type TasksManager struct {
+	logger            *logrus.Entry
 	writer            *os.File
 	redoLogFile       string
-	runningTasks      map[string]int8
+	runningTasks      sync.Map
 	waitForCheckPoint IndexQueue
 	lastCodeIndex     int32
 	lastBuyIndex      int32
@@ -467,27 +431,19 @@ type TasksManager struct {
 // task存在的情况可能是断点重跑的原因，应该返回false表示应该跳过该task的分配
 func (tm *TasksManager) AddTask(t Task) bool {
 
-	if tm.initFlag == 0 {
-		panic(errors.New("TasksManager has to run it's recover func first! "))
-	}
-
 	key := fmt.Sprintf("%d,%d,%d", t.CodeIndex, t.BuyIndex, t.SellIndex)
-	status, ok := tm.runningTasks[key]
+	status, ok := tm.runningTasks.Load(key)
 	if ok {
 		if status == TaskStatuSucessed {
 			return true
 		}
 	}
-	tm.runningTasks[key] = TaskStatuRunning
+	tm.runningTasks.Store(key, TaskStatuRunning)
 	tm.waitForCheckPoint.Insert(&IndexNode{T: &t, Key: key})
 	return false
 }
 
 func (tm *TasksManager) UpdateStatu(s *TaskStatus) {
-
-	if tm.initFlag == 0 {
-		panic(errors.New("TasksManager has to run it's recover func first! "))
-	}
 
 	if s.task.Code == TaskNone {
 		atomic.AddUint32(&tm.finishCount, 1)
@@ -495,6 +451,7 @@ func (tm *TasksManager) UpdateStatu(s *TaskStatus) {
 		switch s.statu {
 		case TaskStatuFailed:
 			atomic.AddUint32(&tm.stop, 1)
+			tm.logger.Infof("Program is going to shutdown. %s", s.msg)
 		case TaskStatuSucessed:
 			tm.SaveStatus(s)
 		}
@@ -505,13 +462,13 @@ func (tm *TasksManager) UpdateStatu(s *TaskStatus) {
 func (tm *TasksManager) SaveStatus(s *TaskStatus) {
 	//写REDO日志
 	key := fmt.Sprintf("%d,%d,%d", s.task.CodeIndex, s.task.BuyIndex, s.task.SellIndex)
-	tm.runningTasks[key] = TaskStatuSucessed
+	tm.runningTasks.Store(key, TaskStatuSucessed)
 
 	//在恢复的过程中不产生redo日志
 	if !tm.recoverModel {
 
 		//IO写入task完成事件
-		log := RedoTaskEvent + RedoDelim + s.task.String(RedoDelim)
+		log := RedoTaskEvent + RedoDelim + s.task.String(RedoDelim) + "\n"
 		_, err := tm.writer.WriteString(log)
 
 		if err != nil {
@@ -528,7 +485,13 @@ func (tm *TasksManager) SaveStatus(s *TaskStatus) {
 	//needToUpdateIndex := false
 
 	for {
-		if tm.runningTasks[nextDoneKey] == TaskStatuSucessed && (currentNode.Key == nextDoneKey) {
+
+		val, ok := tm.runningTasks.Load(nextDoneKey)
+		if ok != true {
+			panic(errors.Errorf("when tasksManager update task status by key %s ,it can't find the key in map", nextDoneKey))
+		}
+
+		if val == TaskStatuSucessed && (currentNode.Key == nextDoneKey) {
 			done = append(done, currentNode.Key)
 			atomic.CompareAndSwapInt32(&tm.lastCodeIndex, tm.lastCodeIndex, currentNode.T.CodeIndex)
 			tm.lastBuyIndex = currentNode.T.BuyIndex
@@ -558,7 +521,7 @@ func (tm *TasksManager) SaveStatus(s *TaskStatus) {
 	*/
 	//移除map中的已经完成的task
 	for _, val := range done {
-		delete(tm.runningTasks, val)
+		tm.runningTasks.Delete(val)
 	}
 
 }
@@ -571,9 +534,9 @@ func (tm *TasksManager) recover() {
 		return
 	}
 
-	if tm.runningTasks == nil {
-		tm.runningTasks = make(map[string]int8)
-	}
+	tm.logger = logrus.WithFields(logrus.Fields{
+		"function": "TaskManager",
+	})
 
 	//进入恢复模式
 	tm.recoverModel = true
@@ -595,6 +558,7 @@ func (tm *TasksManager) recover() {
 		if err != nil || err == io.EOF {
 			break
 		}
+		line = strings.TrimSuffix(line, "\n")
 		strArry := strings.Split(line, RedoDelim)
 
 		if len(strArry) < 1 {

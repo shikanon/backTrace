@@ -22,15 +22,16 @@ func TestSchedulerTask(t *testing.T) {
 
 	tm := TasksManager{
 		redoLogFile:       "test_checkpoint.txt",
-		runningTasks:      make(map[string]int8),
 		waitForCheckPoint: IndexQueue{},
 		lastCodeIndex:     0,
-		lastBuyIndex:      int32(len(buyReg.Names) - 1),
-		lastSellIndex:     int32(len(sellReg.Names) - 1),
+		//lastBuyIndex:      int32(len(buyReg.Names) - 1),
+		lastBuyIndex: 0,
+		//lastSellIndex:     int32(len(sellReg.Names) - 1),
+		lastSellIndex: 0,
 	}
 
 	tm.recover()
-	sc.schedulerTask(&buyReg, &sellReg, testStock, tm)
+	sc.schedulerTask(&buyReg, &sellReg, testStock, &tm)
 }
 
 func TestIndexQueue(t *testing.T) {

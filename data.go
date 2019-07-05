@@ -309,7 +309,7 @@ func GetAllSockCode() []string {
 }
 
 func SaveRewardRecord(record *RewardRecord) (res sql.Result, err error) {
-	InsertSQL := `INSERT INTO reward_record (Code, SellStrategy, BuyStrategy, TotalReturnRate, ReturnRatePerYear,
+	InsertSQL := `INSERT IGNORE INTO reward_record (Code, SellStrategy, BuyStrategy, TotalReturnRate, ReturnRatePerYear,
 		WinningProb, ProfitExpect, LossExpect, AlphaEarnings, BetaEarnings)
 		values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	res, err = DB.Exec(InsertSQL, record.Code, record.SellStrategy, record.BuyStrategy, record.TotalReturnRate, record.ReturnRatePerYear,
@@ -322,7 +322,7 @@ func SaveBatchRewardRecord(records []*RewardRecord, minbatch int) ([]*RewardReco
 	if len(records) < minbatch {
 		return records, err
 	}
-	InsertSQL := `INSERT INTO reward_record (Code, SellStrategy, BuyStrategy, TotalReturnRate, ReturnRatePerYear,
+	InsertSQL := `INSERT IGNORE INTO reward_record (Code, SellStrategy, BuyStrategy, TotalReturnRate, ReturnRatePerYear,
 		WinningProb, ProfitExpect, LossExpect, AlphaEarnings, BetaEarnings)
 		values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	tx := DB.MustBegin()

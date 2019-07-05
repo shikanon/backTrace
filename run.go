@@ -70,7 +70,7 @@ func RunBacktrace() {
 	//分批生成Task并调度
 	contextLogger.Info("start to scheduler tasks")
 
-	sc.schedulerTask(&buyReg, &sellReg, allCodes, tm)
+	sc.schedulerTask(&buyReg, &sellReg, allCodes, &tm)
 
 	contextLogger.Info("scheduler finished!")
 
