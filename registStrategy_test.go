@@ -13,11 +13,11 @@ func TestStrategyRegister(t *testing.T) {
 	sell := BreakOutStrategySell{WindowsNum: 40}
 	reg.Regist(buy)
 	reg.Regist(sell)
-	storeBuy, ok := reg.Value.Load("BreakOutStrategyBuy/WindowsNum:60")
+	storeBuy, ok := reg.Value.Load("BreakOutStrategyBuy/W:60")
 	if !ok {
 		log.Fatal("Error: store error!")
 	}
-	storeSell, ok := reg.Value.Load("BreakOutStrategySell/WindowsNum:40")
+	storeSell, ok := reg.Value.Load("BreakOutStrategySell/W:40")
 	if !ok {
 		log.Fatal("Error: store error!")
 	}
