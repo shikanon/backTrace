@@ -20,9 +20,10 @@ func (r *StrategyRegister) Regist(s interface{}) {
 	for i := 0; i < typeStrategy.NumField(); i++ {
 		field := typeStrategy.Field(i)
 		fieldValue := reflect.Indirect(valueStrategy).FieldByName(field.Name)
-		name = name + "/" + fmt.Sprintf("%b:%v", field.Name[0], fieldValue)
+		name = name + "/" + fmt.Sprintf("%s:%v", string(field.Name[0]), fieldValue)
 	}
 	r.Names = append(r.Names, name)
+	fmt.Println(name)
 	r.Value.Store(name, s)
 }
 
