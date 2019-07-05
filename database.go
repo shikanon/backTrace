@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS reward_record(
 
 type StockDailyData struct {
 	Date             time.Time       `db:"date"`
-	Code             string          `db:"Code"`
+	Code             string          `db:"code"`
 	Open             float32         `db:"open"`               // 开盘价/元                                                                            |
 	Close            float32         `db:"close"`              // 收盘价/元                                                                          |
 	High             float32         `db:"high"`               // 最高价/元                                                                            |
