@@ -1,6 +1,7 @@
 package backTrace
 
 import (
+	"github.com/stretchr/testify/assert"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -8,7 +9,7 @@ import (
 
 func TestMoneyAgent_GetProfileData(t *testing.T) {
 
-	/*testLogger := logrus.WithFields(logrus.Fields{
+	testLogger := logrus.WithFields(logrus.Fields{
 		"function": "TestMoneyAgent_GetProfileData()",
 	})
 
@@ -57,7 +58,7 @@ func TestMoneyAgent_GetProfileData(t *testing.T) {
 	} else {
 		testLogger.Fatal("can't find the stock in the database! the function GetSockData() is error!")
 		testLogger.Println(err)
-	}*/
+	}
 
 }
 

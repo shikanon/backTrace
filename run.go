@@ -53,6 +53,30 @@ func RunBacktrace() {
 	//获取所有股票
 	allCodes := GetAllSockCode()
 
+	/*for index,val := range allCodes{
+		//fmt.Sprintf("break point code 002953 's index is %d\n",index)
+		if val == "002953" {
+			fmt.Printf("break point code 002953 's index is %d\n",index)
+			break
+		}
+	}
+
+
+	for index,name := range buyReg.Names {
+		if name == "BreakOutStrategyBuy/W:0" {
+			fmt.Printf("break point BreakOutStrategyBuy/W:0 's index is %d\n",index)
+		}
+	}
+
+
+	for index,name := range sellReg.Names {
+		if name == "KDJtStrategySell/W:18/K:6/D:6/S:3" {
+			fmt.Printf("break point KDJtStrategySell/W:18/K:6/D:6/S:3 's index is %d\n",index)
+			//contextLogger.Infof("tasks total : %d .", allTaskCount)
+		}
+	}
+	return*/
+
 	//一个code需要测试这么多个策略组合
 	oneCodeNeedTest := uint32(len(buyReg.Names) * len(sellReg.Names))
 

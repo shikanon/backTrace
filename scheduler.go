@@ -70,10 +70,10 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 	for index := 0; index < int(canRunTaskNum); index++ {
 		go func(workerId string) {
 
+			flag := true
 			for {
 				task, ok := <-taskChan
 
-				flag := true
 				msg := "ok"
 
 				if ok != true {
@@ -113,10 +113,9 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 					err = agent.WorkForSingle(*stock)
 
 					if err != nil {
-						flag = false
+						//flag = false
 						schedulerLogger.Errorf("%s agent.WorkForSingle cased error by Code %s, error: %s \n", workerId, task.Code, err.Error())
 						schedulerLogger.Errorf("%s aborted task (%s,%s,%s)", workerId, task.Code, task.BuyStragety, task.SellStragety)
-
 					} else {
 
 						//评估策略效果
@@ -158,11 +157,14 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 				finalChan <- taskStatu //返回task执行结果
 			}
 
-			//通知taskManager,该goroutine已经完成所有任务，退出了
-			taskStatu := TaskStatus{
-				task: &Task{Code: TaskNone},
+			if flag == false {
+				//通知taskManager,该goroutine已经完成所有任务，退出了
+				taskStatu := TaskStatus{
+					task: &Task{Code: TaskNone},
+				}
+				finalChan <- taskStatu
 			}
-			finalChan <- taskStatu
+
 		}(fmt.Sprintf("worker_%d", index))
 	}
 
@@ -209,6 +211,7 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 	lastBuyIndex := tm.lastBuyIndex
 	lastSellIndex := tm.lastSellIndex
 
+	successedFlag := true
 	for codeIndex, code := range codes[lastCodeIndex:] {
 		//获取买入策略
 		for buyIndex, buyName := range buyReg.Names[lastBuyIndex:] {
@@ -219,10 +222,11 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 				//taskStr := Code + "," + buyName + "," + sellName
 				//id := (CodeIndex + 1) * (buyIndex + 1) * (sellIndex + 1)
 
-				if tm.stop > 0 { //tm检查到有task失败,程序中断
+				if atomic.LoadUint32(&tm.stop) > 0 { //tm检查到有task失败,程序中断
+					schedulerLogger.Errorf("Generate Task is breakout ,because tm.Stop > 0.")
+					successedFlag = false
 					break
 				}
-
 				t := Task{CodeIndex: int32(codeIndex), Code: code, BuyIndex: int32(buyIndex), BuyStragety: buyName,
 					SellIndex: int32(sellIndex), SellStragety: sellName}
 				schedulerLogger.Infof("add task %s", fmt.Sprintf("%s,%s,%s", code, buyName, sellName))
@@ -260,9 +264,11 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 		}
 	}
 
-	//通知各个goroutine所有的task已经分配完了,已经没有task了
-	for x := uint32(0); x < canRunTaskNum; x++ {
-		taskChan <- Task{Code: TaskNone}
+	if successedFlag { //如果是中断程序退出的，直接跳过发送完成所有task的信号
+		//通知各个goroutine所有的task已经分配完了,已经没有task了
+		for x := uint32(0); x < canRunTaskNum; x++ {
+			taskChan <- Task{Code: TaskNone}
+		}
 	}
 
 	for {
@@ -270,7 +276,7 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 			schedulerLogger.Infof("all task were done ,now Taskmanager clean it's tmp file %s", tm.redoLogFile)
 			tm.clean()
 			break
-		} else if tm.stop == 1 { //强行停止
+		} else if atomic.LoadUint32(&tm.stop) > 0 { //强行停止
 			break
 		} else {
 			time.Sleep(time.Millisecond * 500)
