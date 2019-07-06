@@ -3,8 +3,6 @@ package backTrace
 import (
 	"bufio"
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"strconv"
@@ -12,6 +10,9 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -229,7 +230,7 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 				}
 				t := Task{CodeIndex: int32(codeIndex), Code: code, BuyIndex: int32(buyIndex), BuyStragety: buyName,
 					SellIndex: int32(sellIndex), SellStragety: sellName}
-				schedulerLogger.Infof("add task %s", fmt.Sprintf("%s,%s,%s", code, buyName, sellName))
+				schedulerLogger.Debugf("add task %s", fmt.Sprintf("%s,%s,%s", code, buyName, sellName))
 				isFinished := tm.AddTask(t) //记录task,并检查是否已经完成了的
 				if isFinished == false {
 					taskChan <- t
