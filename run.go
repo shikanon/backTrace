@@ -18,6 +18,7 @@ func init() {
 }
 
 func RunBacktrace() {
+
 	contextLogger := logrus.WithFields(logrus.Fields{
 		"function": "RunBacktrace()",
 	})
@@ -86,10 +87,8 @@ func RunBacktrace() {
 	contextLogger.Infof("tasks total : %d .", allTaskCount)
 
 	//断点恢复
-	tm := TasksManager{
-		redoLogFile: "checkpoint.txt",
-	}
-	tm.recover()
+	tm := TasksManager{redisKey: LastestIndex}
+	tm.Recover()
 
 	//分批生成Task并调度
 	contextLogger.Info("start to scheduler tasks")

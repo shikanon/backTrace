@@ -275,7 +275,7 @@ func GetAllSockCode() []string {
 	if os.IsNotExist(err) {
 		contextLogger.Info("star to database select data!")
 		// 查询
-		err = DB.Select(&codes, "select Code from stock_daily_data group by Code")
+		err = DB.Select(&codes, "select Code from stock_codes order by seq")
 		if err != nil {
 			logrus.Error(err)
 		}

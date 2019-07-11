@@ -21,16 +21,15 @@ func TestSchedulerTask(t *testing.T) {
 	sellReg := GenerateAllSellStrage()
 
 	tm := TasksManager{
-		redoLogFile:       "test_checkpoint.txt",
 		waitForCheckPoint: IndexQueue{},
-		lastCodeIndex:     0,
-		//lastBuyIndex:      int32(len(buyReg.Names) - 1),
-		lastBuyIndex: 0,
-		//lastSellIndex:     int32(len(sellReg.Names) - 1),
-		lastSellIndex: 0,
+		LastCodeIndex:     0,
+		//LastBuyIndex:      int32(len(buyReg.Names) - 1),
+		LastBuyIndex: 0,
+		//LastSellIndex:     int32(len(sellReg.Names) - 1),
+		LastSellIndex: 0,
 	}
 
-	tm.recover()
+	tm.Recover()
 	sc.schedulerTask(&buyReg, &sellReg, testStock, &tm)
 }
 
@@ -76,15 +75,24 @@ func TestIndexQueue(t *testing.T) {
 
 func TestTaskManager(t *testing.T) {
 
-	/*testLogger := logrus.WithFields(logrus.Fields{
+	testLogger := logrus.WithFields(logrus.Fields{
 		"function": "TestTaskManager()",
 	})
-	*/
-	testFile := "test_checkpoint.txt"
-	tm := TasksManager{
-		redoLogFile: testFile,
+
+	testKey := "test_latestIndex"
+
+	//获取redis client
+	client, err := CreateRedisClient()
+	if err != nil {
+		testLogger.Fatalf("TaskManager can't get redis client. error: %s\n", err.Error())
+		panic(err)
 	}
-	tm.recover()
+	client.Del(testKey)
+
+	tm := TasksManager{
+		redisKey: testKey,
+	}
+	tm.Recover()
 
 	t1 := Task{Code: "001", CodeIndex: 0, BuyIndex: 0, BuyStragety: "buy0", SellIndex: 0, SellStragety: "sell0"}
 	t2 := Task{Code: "002", CodeIndex: 0, BuyIndex: 0, BuyStragety: "buy0", SellIndex: 2, SellStragety: "sell2"}
@@ -97,23 +105,32 @@ func TestTaskManager(t *testing.T) {
 	tm.AddTask(t4)
 
 	//模拟task完成了,更新task状态
-	ts1 := TaskStatus{task: &t1, statu: TaskStatuSucessed, msg: "ok"}
-	ts2 := TaskStatus{task: &t2, statu: TaskStatuSucessed, msg: "ok"}
-	ts3 := TaskStatus{task: &t3, statu: TaskStatuSucessed, msg: "ok"}
-	ts4 := TaskStatus{task: &t4, statu: TaskStatuSucessed, msg: "ok"}
+	ts1 := TaskStatus{Task: &t1, Statu: TaskStatuSucessed, Msg: "ok"}
+	ts2 := TaskStatus{Task: &t2, Statu: TaskStatuSucessed, Msg: "ok"}
+	ts3 := TaskStatus{Task: &t3, Statu: TaskStatuSucessed, Msg: "ok"}
+	ts4 := TaskStatus{Task: &t4, Statu: TaskStatuSucessed, Msg: "ok"}
+
+	/*key:= fmt.Sprintf("%d,%d,%d",tm.LastCodeIndex,tm.LastBuyIndex,tm.LastSellIndex)
+	fmt.Println(key)*/
 
 	tm.SaveStatus(&ts3)
 
-	assert.Equal(t, int32(0), tm.lastCodeIndex)
-	assert.Equal(t, int32(0), tm.lastBuyIndex)
-	assert.Equal(t, int32(0), tm.lastSellIndex)
+	assert.Equal(t, int32(0), tm.LastCodeIndex)
+	assert.Equal(t, int32(0), tm.LastBuyIndex)
+	assert.Equal(t, int32(0), tm.LastSellIndex)
 
+	/*	key = fmt.Sprintf("%d,%d,%d",tm.LastCodeIndex,tm.LastBuyIndex,tm.LastSellIndex)
+		fmt.Println(key)
+	*/
 	tm.SaveStatus(&ts1)
 	tm.SaveStatus(&ts2)
 
-	assert.Equal(t, int32(1), tm.lastCodeIndex)
-	assert.Equal(t, int32(0), tm.lastBuyIndex)
-	assert.Equal(t, int32(1), tm.lastSellIndex)
+	/*key = fmt.Sprintf("%d,%d,%d",tm.LastCodeIndex,tm.LastBuyIndex,tm.LastSellIndex)
+	fmt.Println(key)
+	*/
+	assert.Equal(t, int32(1), tm.LastCodeIndex)
+	assert.Equal(t, int32(0), tm.LastBuyIndex)
+	assert.Equal(t, int32(1), tm.LastSellIndex)
 
 	tm.SaveStatus(&ts4)
 	tm.clean()

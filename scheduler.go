@@ -1,12 +1,10 @@
 package backTrace
 
 import (
-	"bufio"
 	"fmt"
+	"github.com/go-redis/redis"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"io"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,13 +13,12 @@ import (
 )
 
 const (
+	LastestIndex      = "latestIndex"
 	TaskStatuSucessed = int8(2)
 	TaskStatuFailed   = int8(3)
 	TaskStatuWait     = int8(0)
 	TaskStatuRunning  = int8(1)
 	TaskNone          = "-999"
-	RedoTaskEvent     = "EVENT"
-	RedoCheckPoint    = "POINT"
 	RedoDelim         = ";"
 )
 
@@ -50,23 +47,9 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 	taskChan := make(chan Task, canRunTaskNum)        //用于通知执行Task
 	finalChan := make(chan TaskStatus, canRunTaskNum) //用于反馈Task运行结果的
 
-	//---------------------------------------预加载code
-
-	//successedTaskForCode:=make(map[string]int32,defaultPreLoad)  //用于跟中code对应task的完成情况, 与默认加载code
-
-	//defaultPreLoad := uint32(10)
-	//preLoadStartIndex := uint32(0)
-	//preLoadEndIndex := defaultPreLoad //默认加载3个股票数据
-
-	//fmt.Printf("allCodesCount: %d \n",allCodesCount)
-
-	//一个code需要测试这么多个策略组合
-	//oneCodeNeedTest := uint32(len(buyReg.Names) * len(sellReg.Names))
-
-	//计算得到全部的Task数目，h个code 与 m个买策略 、 n个卖策略 笛卡尔积得到 h * m * n个 Task
-	//allTaskCount := allCodesCount * oneCodeNeedTest
-
 	//等待分配Task执行
+	//如果Task返回失败的结果，taskChan的另一端会停止发送task，整个程序会停掉
+	//具体逻辑查看214行的for循环
 	for index := 0; index < int(canRunTaskNum); index++ {
 		go func(workerId string) {
 
@@ -104,7 +87,7 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 					flag = false
 					schedulerLogger.Errorf("%s cacheMap get data by Code %s caused error: %s \n", workerId, task.Code, err.Error())
 				} else {
-					schedulerLogger.Debugf("%s start task (%s,%s,%s)", workerId, task.Code, task.BuyStragety, task.SellStragety)
+					schedulerLogger.Debugf("%s start Task (%s,%s,%s)", workerId, task.Code, task.BuyStragety, task.SellStragety)
 					ana := Analyzer{BuyPolicies: []Strategy{buy},
 						SellPolicies: []Strategy{sell}}
 					agent := MoneyAgent{initMoney: 10000, Analyzer: ana}
@@ -115,7 +98,7 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 					if err != nil {
 						//flag = false
 						schedulerLogger.Errorf("%s agent.WorkForSingle cased error by Code %s, error: %s \n", workerId, task.Code, err.Error())
-						schedulerLogger.Errorf("%s aborted task (%s,%s,%s)", workerId, task.Code, task.BuyStragety, task.SellStragety)
+						schedulerLogger.Errorf("%s aborted Task (%s,%s,%s)", workerId, task.Code, task.BuyStragety, task.SellStragety)
 					} else {
 
 						//评估策略效果
@@ -123,7 +106,7 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 						estimator, err := CreateEstimator(&result)
 						if err != nil {
 							schedulerLogger.Errorf("CreateEstimator caused Error: %s", err.Error())
-							schedulerLogger.Errorf("%s aborted task (%s,%s,%s)", workerId, task.Code, task.BuyStragety, task.SellStragety)
+							schedulerLogger.Errorf("%s aborted Task (%s,%s,%s)", workerId, task.Code, task.BuyStragety, task.SellStragety)
 							continue
 						}
 
@@ -137,9 +120,10 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 
 						if err != nil {
 							flag = false
+							msg = err.Error()
 							schedulerLogger.Errorf("save RewardRecord caused error: %s", err.Error())
 						} else {
-							schedulerLogger.Debugf("%s Finish task (%s,%s,%s)", workerId, task.Code, task.BuyStragety, task.SellStragety)
+							schedulerLogger.Debugf("%s Finish Task (%s,%s,%s)", workerId, task.Code, task.BuyStragety, task.SellStragety)
 						}
 					}
 				}
@@ -150,20 +134,18 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 				}
 
 				taskStatu := TaskStatus{
-					task:  &task,
-					statu: statu,
-					msg:   msg,
+					Task:  &task,
+					Statu: statu,
+					Msg:   msg,
 				}
 				finalChan <- taskStatu //返回task执行结果
 			}
 
-			if flag == false {
-				//通知taskManager,该goroutine已经完成所有任务，退出了
-				taskStatu := TaskStatus{
-					task: &Task{Code: TaskNone},
-				}
-				finalChan <- taskStatu
+			//通知taskManager,该goroutine已经完成所有任务，退出了
+			taskStatu := TaskStatus{
+				Task: &Task{Code: TaskNone},
 			}
+			finalChan <- taskStatu
 
 		}(fmt.Sprintf("worker_%d", index))
 	}
@@ -182,8 +164,8 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 	allCodesCount := int32(len(codes))
 	schedulerLogger.Infof("code's len is %d", allCodesCount)
 	//预加载1
-	preLoadStratIndex := tm.lastCodeIndex
-	preLoadEndIndex := tm.lastCodeIndex + 5
+	preLoadStratIndex := tm.LastCodeIndex
+	preLoadEndIndex := tm.LastCodeIndex + 5
 
 	if preLoadEndIndex > allCodesCount {
 		preLoadEndIndex = allCodesCount
@@ -207,11 +189,14 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 		panic(errors.Errorf("cacheMap reday load data caused error, %s", err.Error()))
 	}
 
-	lastCodeIndex := tm.lastCodeIndex
-	lastBuyIndex := tm.lastBuyIndex
-	lastSellIndex := tm.lastSellIndex
+	lastCodeIndex := tm.LastCodeIndex
+	lastBuyIndex := tm.LastBuyIndex
+	lastSellIndex := tm.LastSellIndex
 
 	successedFlag := true
+
+	schedulerLogger.Infof("Task will start from index: %d,%d,%d", lastCodeIndex, lastBuyIndex, lastSellIndex)
+
 	for codeIndex, code := range codes[lastCodeIndex:] {
 		//获取买入策略
 		for buyIndex, buyName := range buyReg.Names[lastBuyIndex:] {
@@ -222,21 +207,26 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 				//taskStr := Code + "," + buyName + "," + sellName
 				//id := (CodeIndex + 1) * (buyIndex + 1) * (sellIndex + 1)
 
+				actualCodeIndex := int32(codeIndex) + lastCodeIndex
+				actualBuyIndex := int32(buyIndex) + lastBuyIndex
+				actualSellIndex := int32(sellIndex) + lastSellIndex
+
 				if atomic.LoadUint32(&tm.stop) > 0 { //tm检查到有task失败,程序中断
 					schedulerLogger.Errorf("Generate Task is breakout ,because tm.Stop > 0.")
 					successedFlag = false
 					break
 				}
-				t := Task{CodeIndex: int32(codeIndex), Code: code, BuyIndex: int32(buyIndex), BuyStragety: buyName,
-					SellIndex: int32(sellIndex), SellStragety: sellName}
-				schedulerLogger.Infof("add task %s", fmt.Sprintf("%s,%s,%s", code, buyName, sellName))
+				t := Task{CodeIndex: actualCodeIndex, Code: code, BuyIndex: actualBuyIndex, BuyStragety: buyName,
+					SellIndex: actualSellIndex, SellStragety: sellName}
+				schedulerLogger.Debugf("add Task %s", fmt.Sprintf("%d,%d,%d", actualCodeIndex, actualBuyIndex, actualSellIndex))
+
 				isFinished := tm.AddTask(t) //记录task,并检查是否已经完成了的
 				if isFinished == false {
 					taskChan <- t
 					schedulerLogger.Debug(t.String(","))
 				}
 
-				newIndex := atomic.LoadInt32(&tm.lastCodeIndex)
+				newIndex := atomic.LoadInt32(&tm.LastCodeIndex)
 
 				if newIndex > preLoadEndIndex && preLoadEndIndex != allCodesCount {
 					waitForDeleteCodes := codes[preLoadStratIndex:preLoadEndIndex]
@@ -272,11 +262,11 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 	}
 
 	for {
-		if tm.finishCount == canRunTaskNum { //等待所有goroutine完成task退出
-			schedulerLogger.Infof("all task were done ,now Taskmanager clean it's tmp file %s", tm.redoLogFile)
-			tm.clean()
+		if atomic.LoadUint32(&tm.stop) > 0 { //强行停止
 			break
-		} else if atomic.LoadUint32(&tm.stop) > 0 { //强行停止
+		} else if tm.finishCount == canRunTaskNum { //等待所有goroutine完成task退出
+			schedulerLogger.Info("all Task were done.")
+			tm.clean()
 			break
 		} else {
 			time.Sleep(time.Millisecond * 500)
@@ -329,9 +319,9 @@ func (t *Task) String(delim string) string {
 
 //Task状态
 type TaskStatus struct {
-	task  *Task
-	statu int8 //
-	msg   string
+	Task  *Task
+	Statu int8 //
+	Msg   string
 }
 
 type IndexNode struct {
@@ -410,27 +400,32 @@ func (q *IndexQueue) Insert(newNode *IndexNode) {
 //移除head
 func (q *IndexQueue) Pop() {
 	if q.Head != nil {
+		//fmt.Printf("delete key %s \n",q.Head.Key)
 		q.Head.Prev = nil
 		q.Head = q.Head.Next
+
+		if q.Head == nil {
+			q.Tail = nil
+		}
+
 	}
 }
 
 //用于跟踪Task的运行状况
 type TasksManager struct {
 	logger            *logrus.Entry
-	writer            *os.File
-	redoLogFile       string
+	client            *redis.Client
 	runningTasks      sync.Map
 	waitForCheckPoint IndexQueue
-	lastCodeIndex     int32
-	lastBuyIndex      int32
-	lastSellIndex     int32
+	LastCodeIndex     int32
+	LastBuyIndex      int32
+	LastSellIndex     int32
 	finishCount       uint32
 	//clean             uint32
-	recoverModel bool
-	lock         sync.RWMutex
-	initFlag     int64
-	stop         uint32
+	lock     sync.RWMutex
+	initFlag int64  //初始化标志
+	stop     uint32 //停止标志
+	redisKey string
 }
 
 // 分配task之前先记录task,如果task已经存,表示该task已经存在
@@ -451,13 +446,13 @@ func (tm *TasksManager) AddTask(t Task) bool {
 
 func (tm *TasksManager) UpdateStatu(s *TaskStatus) {
 
-	if s.task.Code == TaskNone {
+	if s.Task.Code == TaskNone {
 		atomic.AddUint32(&tm.finishCount, 1)
 	} else {
-		switch s.statu {
+		switch s.Statu {
 		case TaskStatuFailed:
-			atomic.AddUint32(&tm.stop, 1)
-			tm.logger.Infof("Program is going to shutdown. %s", s.msg)
+			tm.forceStop()
+			tm.logger.Infof("Program is going to shutdown. %s", s.Msg)
 		case TaskStatuSucessed:
 			tm.SaveStatus(s)
 		}
@@ -465,48 +460,45 @@ func (tm *TasksManager) UpdateStatu(s *TaskStatus) {
 
 }
 
+func (tm *TasksManager) forceStop() {
+	atomic.AddUint32(&tm.stop, 1)
+}
+
 func (tm *TasksManager) SaveStatus(s *TaskStatus) {
 	//写REDO日志
-	key := fmt.Sprintf("%d,%d,%d", s.task.CodeIndex, s.task.BuyIndex, s.task.SellIndex)
+	key := fmt.Sprintf("%d,%d,%d", s.Task.CodeIndex, s.Task.BuyIndex, s.Task.SellIndex)
 	tm.runningTasks.Store(key, TaskStatuSucessed)
 
-	//在恢复的过程中不产生redo日志
-	if !tm.recoverModel {
-
-		//IO写入task完成事件
-		log := RedoTaskEvent + RedoDelim + s.task.String(RedoDelim) + "\n"
-		_, err := tm.writer.WriteString(log)
-
-		if err != nil {
-			panic(errors.Errorf("TaskManager can't write redo log by err: %s", err.Error()))
-		}
-	}
-
-	//checkpoint 并 移除map已经写入checkpoint的task
-	var done []string
 	//循环更新下标
 	currentNode := tm.waitForCheckPoint.Head
 	nextDoneKey := key
 
 	//needToUpdateIndex := false
 
-	for {
+	//mt.Printf("-------------------------- update key %s \n",key)
 
+	updateIndexFlag := false
+	for {
 		val, ok := tm.runningTasks.Load(nextDoneKey)
 		if ok != true {
-			panic(errors.Errorf("when tasksManager update task status by key %s ,it can't find the key in map", nextDoneKey))
+			panic(errors.Errorf("when tasksManager update Task status by key %s ,it can't find the key in map", nextDoneKey))
 		}
 
-		if val == TaskStatuSucessed && (currentNode.Key == nextDoneKey) {
-			done = append(done, currentNode.Key)
-			atomic.CompareAndSwapInt32(&tm.lastCodeIndex, tm.lastCodeIndex, currentNode.T.CodeIndex)
-			tm.lastBuyIndex = currentNode.T.BuyIndex
-			tm.lastSellIndex = currentNode.T.SellIndex
-			currentNode = currentNode.Next
-			tm.waitForCheckPoint.Pop() //移除head
+		//fmt.Printf("key %s:val %d \n",nextDoneKey,val)
+		//fmt.Printf("currentNode.Key %s \n",currentNode.Key)
+		if val == TaskStatuSucessed && currentNode.Key == nextDoneKey {
 
+			updateIndexFlag = true
+
+			atomic.StoreInt32(&tm.LastCodeIndex, currentNode.T.CodeIndex)
+			atomic.StoreInt32(&tm.LastBuyIndex, currentNode.T.BuyIndex)
+			atomic.StoreInt32(&tm.LastSellIndex, currentNode.T.SellIndex)
+			currentNode = currentNode.Next
+			tm.waitForCheckPoint.Pop()          //移除head
+			tm.runningTasks.Delete(nextDoneKey) //移除runningtask中完成了的task
 			if tm.waitForCheckPoint.Head != nil {
 				nextDoneKey = tm.waitForCheckPoint.Head.Key
+				//fmt.Printf("tm.waitForCheckPoint.Head.Key %s \n",nextDoneKey)
 			} else {
 				break
 			}
@@ -516,24 +508,20 @@ func (tm *TasksManager) SaveStatus(s *TaskStatus) {
 		}
 	}
 
-	//IO 写入更新后的index
-	/*log = RedoCheckPoint + RedoDelim + strconv.FormatInt(int64(tm.lastCodeIndex), 10) + RedoDelim +
-		strconv.FormatInt(int64(tm.lastBuyIndex), 10) + RedoDelim + strconv.FormatInt(int64(tm.lastSellIndex), 10) + "\n"
-	_, err := tm.writer.WriteString(log)
-
-	if err != nil {
-		panic(errors.Errorf("TaskManager can't write checkpoint log by error : %s", err.Error()))
-	}
-	*/
-	//移除map中的已经完成的task
-	for _, val := range done {
-		tm.runningTasks.Delete(val)
+	if updateIndexFlag {
+		newIndex := fmt.Sprintf("%d%s%d%s%d", atomic.LoadInt32(&tm.LastCodeIndex), RedoDelim,
+			atomic.LoadInt32(&tm.LastBuyIndex), RedoDelim, atomic.LoadInt32(&tm.LastSellIndex))
+		_, err := tm.client.Set(tm.redisKey, newIndex, 0).Result()
+		if err != nil {
+			tm.logger.Infof("write LatestIndex to redis caused error ,%s", err.Error())
+			tm.forceStop() //强制终止程序
+		}
 	}
 
 }
 
 //TasksManager必须要要调用了该方法后才能正常运作
-func (tm *TasksManager) recover() {
+func (tm *TasksManager) Recover() {
 	tm.lock.Lock()
 	if tm.initFlag != 0 {
 		fmt.Println("tasksManager already init!")
@@ -544,96 +532,73 @@ func (tm *TasksManager) recover() {
 		"function": "TaskManager",
 	})
 
-	//进入恢复模式
-	tm.recoverModel = true
-
-	file, err := os.OpenFile(tm.redoLogFile, os.O_RDWR, 0666)
-	if os.IsNotExist(err) {
-		file, err = os.Create(tm.redoLogFile)
-	}
-
+	//获取redis client
+	tm.client, err = CreateRedisClient()
 	if err != nil {
-		panic(errors.Errorf("TaskManager can't open or create file by error: %s", err.Error()))
+		tm.logger.Errorf("TaskManager can't get redis client. error: %s\n", err.Error())
+		panic(err)
 	}
 
-	tm.writer = file
-	reader := bufio.NewReader(file)
-
-	for {
-		line, err := reader.ReadString('\n')
-		if err != nil || err == io.EOF {
-			break
-		}
-		line = strings.TrimSuffix(line, "\n")
-		strArry := strings.Split(line, RedoDelim)
-
-		if len(strArry) < 1 {
-			continue
-		} else {
-			switch strArry[0] {
-			case RedoTaskEvent:
-				//复现事件
-				tm.redoTask(strArry)
-				/*case RedoCheckPoint:
-				tm.redoCheckPoint(strArry)*/
-			}
-		}
-
+	indexStr, err := tm.client.Get(tm.redisKey).Result()
+	beginFromZero := false
+	if err == redis.Nil {
+		tm.logger.Info("TaskManger Recover can't find latestIndex in redis.")
+		tm.logger.Info("TaskManger gonna scheduler Task form the 0.")
+		beginFromZero = true
+	} else if err != nil {
+		tm.logger.Errorf("TaskManger Recover get the latestIndex caused error, %s", err.Error())
+		panic(err)
 	}
 
-	tm.recoverModel = false //恢复模式关闭,后续saveStatus操作会产生redo日志
+	if beginFromZero {
+		tm.LastCodeIndex = 0
+		tm.LastBuyIndex = 0
+		tm.LastSellIndex = 0
+	} else {
+		array := strings.Split(indexStr, RedoDelim)
+		if len(array) != 3 {
+			tm.logger.Errorf("TaskManger Recover get the latestIndex is wrong , %s", indexStr)
+			panic(err)
+		}
+
+		tmpCodeIndex, err := strconv.ParseInt(array[0], 10, 64)
+		if err != nil {
+			tm.logger.Errorf("TaskManger Recover get the latestCodeIndex is wrong , %s", array[0])
+			panic(err)
+		}
+		tm.LastCodeIndex = int32(tmpCodeIndex)
+
+		tmpBuyIndex, err := strconv.ParseInt(array[1], 10, 64)
+		if err != nil {
+			tm.logger.Errorf("TaskManger Recover get the latestBuyIndex is wrong , %s", array[1])
+			panic(err)
+		}
+		tm.LastBuyIndex = int32(tmpBuyIndex)
+
+		tmpSellIndex, err := strconv.ParseInt(array[2], 10, 64)
+		if err != nil {
+			tm.logger.Errorf("TaskManger Recover get the latestSellIndex is wrong , %s", array[2])
+			panic(err)
+		}
+		tm.LastSellIndex = int32(tmpSellIndex)
+		tm.logger.Infof("Task will start from index: %s", indexStr)
+	}
+
+	if beginFromZero == false {
+		//增加这个task状态，lastIndex对应的Task其实是上次断点前最后完成的Task，这里添加状态是避免重复跑这个Task
+		key := fmt.Sprintf("%d,%d,%d", tm.LastCodeIndex, tm.LastBuyIndex, tm.LastSellIndex)
+		tm.runningTasks.Store(key, TaskStatuSucessed)
+	}
 	tm.initFlag = 1
 	tm.lock.Unlock()
 
 }
 
-func (tm *TasksManager) redoTask(array []string) {
-
-	code := array[1]
-	codeIndex, err := strconv.ParseInt(array[2], 10, 32)
-	if err != nil {
-		panic(errors.Errorf("redoTask caused error by ParseInt CodeIndex : %s", err.Error()))
-	}
-	buy := array[3]
-	buyIndex, err := strconv.ParseInt(array[4], 10, 32)
-	if err != nil {
-		panic(errors.Errorf("redoTask caused error by ParseInt buyIndex : %s", err.Error()))
-	}
-	sell := array[5]
-	sellIndex, err := strconv.ParseInt(array[6], 10, 32)
-	if err != nil {
-		panic(errors.Errorf("redoTask caused error by ParseInt sellIndex : %s", err.Error()))
-	}
-	t := Task{Code: code, CodeIndex: int32(codeIndex),
-		BuyStragety: buy, BuyIndex: int32(buyIndex), SellStragety: sell, SellIndex: int32(sellIndex)}
-
-	tm.AddTask(t)
-
-	ts := TaskStatus{
-		task:  &t,
-		statu: TaskStatuSucessed,
-		msg:   "ok",
-	}
-	tm.UpdateStatu(&ts)
-
-}
-
 func (tm *TasksManager) clean() {
-
-	err = tm.writer.Close()
-
-	err := os.Remove(tm.redoLogFile)
+	err := tm.client.Close()
 	if err != nil {
-		//如果删除失败则输出 file remove Error!
-		fmt.Println("file remove Error!")
-		//输出错误详细信息
-		fmt.Printf("%s", err)
+		tm.logger.Errorf("TaskManager close client caused error : %s ", err.Error())
 	} else {
-		//如果删除成功则输出 file remove OK!
-		fmt.Print("file remove OK!")
+		tm.logger.Info("TaskManager close client successed. ")
 	}
 }
-
-/*func (tm *TasksManager) redoCheckPoint(array []string) {
-
-}*/
