@@ -228,7 +228,8 @@ func (sc *LocalScheduler) schedulerTask(buyReg *StrategyRegister, sellReg *Strat
 
 				newIndex := atomic.LoadInt32(&tm.LastCodeIndex)
 
-				if newIndex > preLoadEndIndex && preLoadEndIndex != allCodesCount {
+				if newIndex > preLoadEndIndex && preLoadEndIndex != allCodesCount &&
+					preLoadStratIndex2 == allCodesCount {
 					waitForDeleteCodes := codes[preLoadStratIndex:preLoadEndIndex]
 					go func(delCodes []string) {
 						for _, code := range delCodes {
